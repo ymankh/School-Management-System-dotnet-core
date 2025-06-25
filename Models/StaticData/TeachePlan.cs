@@ -1,9 +1,8 @@
-﻿namespace SchoolSystemTask.Models.StaticData
+﻿namespace SchoolSystemTask.Models.StaticData;
+
+public static class TeacherPlan
 {
-    public static class TeacherPlan
-    {
-        public const string BASIC = "basic";
-        public const string PRO = "pro";
-        public const string PREMIUM = "premium";
-    }
+    public const string BASIC = "basic";
+    public const string PRO = "pro";
+    public const string PREMIUM = "premium";
 }

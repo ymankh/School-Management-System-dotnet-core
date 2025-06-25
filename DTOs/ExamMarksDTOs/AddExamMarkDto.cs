@@ -1,8 +1,7 @@
-namespace SchoolSystemTask.DTOs.ExamMarksDTOs
+namespace SchoolSystemTask.DTOs.ExamMarksDTOs;
+
+public class AddExamMarkDto
 {
-    public class AddExamMarkDto
-    {
-        public int Id { get; set; }
-        public int Mark { get; set; }
-    }
+    public int Id { get; set; }
+    public int Mark { get; set; }
 }

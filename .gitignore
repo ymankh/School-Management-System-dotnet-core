@@ -366,7 +366,9 @@ FodyWeavers.xsd
 dev_schoolmanagement.db
 package-lock.json
 package.json
-/.idea/.idea.SchoolSystemTask/.idea/jsLibraryMappings.xml
 
 *.db-shm
 *.db-wal
+obj
+.idea
+.vscode

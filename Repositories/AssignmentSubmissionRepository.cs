@@ -1,21 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SchoolSystemTask.Models;
 
-namespace SchoolSystemTask.Repositories
+namespace SchoolSystemTask.Repositories;
+
+public class AssignmentSubmissionRepository(MyDbContext context)
 {
-    public class AssignmentSubmissionRepository(MyDbContext context)
+    public int SubmissionsCount(int teacherId)
     {
-        public int SubmissionsCount(int teacherId)
-        {
-            return context.AssignmentSubmissions.
-            Include(a => a.Assignment.ClassSubject.
-            TeacherSubject).
-            Where(a => a.Assignment.ClassSubject.TeacherSubject.TeacherId == teacherId).
-            Count();
-        }
+        return context.AssignmentSubmissions.
+        Include(a => a.Assignment.ClassSubject.
+        TeacherSubject).
+        Where(a => a.Assignment.ClassSubject.TeacherSubject.TeacherId == teacherId).
+        Count();
     }
 }

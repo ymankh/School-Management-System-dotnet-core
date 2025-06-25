@@ -1,9 +1,7 @@
-﻿namespace SchoolSystemTask.Helpers;
-
-using System;
-using SchoolSystemTask.DTOs.TeacherDTOs;
+﻿using SchoolSystemTask.DTOs.TeacherDTOs;
 using SchoolSystemTask.Models;
 
+namespace SchoolSystemTask.Repositories;
 
 public class TeacherRepository(MyDbContext context)
 {

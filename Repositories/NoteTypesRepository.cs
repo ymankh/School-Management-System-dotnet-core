@@ -4,13 +4,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using SchoolSystemTask.Models;
 
-namespace SchoolSystemTask.Repositories
+namespace SchoolSystemTask.Repositories;
+
+public class NoteTypesRepository(MyDbContext context)
 {
-    public class NoteTypesRepository(MyDbContext context)
+    public IEnumerable<NoteType> GetNoteTypes()
     {
-        public IEnumerable<NoteType> GetNoteTypes()
-        {
-            return context.NoteTypes.ToList();
-        }
+        return context.NoteTypes.ToList();
     }
 }

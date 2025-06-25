@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Net;
+using Microsoft.EntityFrameworkCore;
+using PayPal;
 using SchoolSystemTask.DTOs.StudentNoteDTOs;
 using SchoolSystemTask.Models;
 using SchoolSystemTask.Models.StaticData;
@@ -8,10 +10,9 @@ public class StudentNoteRepository(MyDbContext context)
 {
     public List<StudentNote> GetTeacherStudentNotes(int teacherId)
     {
-        return context.StudentNotes.Where(s => s.TeacherId == teacherId).Include(sn => sn.NoteType)
+        return [.. context.StudentNotes.Where(s => s.TeacherId == teacherId).Include(sn => sn.NoteType)
             .Include(s => s.Student.Class.ClassSubjects)
-            .ThenInclude(classSubject => classSubject.TeacherSubject.Subject)
-            .ToList();
+            .ThenInclude(classSubject => classSubject.TeacherSubject.Subject)];
     }
 
     public List<StudentNote> GetStudentNotes(int studentId)
@@ -80,7 +81,7 @@ public class StudentNoteRepository(MyDbContext context)
     {
         var note = context.StudentNotes.Find(editStudentNoteDto.StudentNoteId);
         if (note == null)
-            throw new Exception("Coudln't find the student note with the given Id");
+            throw new BadHttpRequestException("Couldn't find the student note with the given Id");
         note.NoteTypeId = editStudentNoteDto.NoteTypeId;
         note.Note = editStudentNoteDto.Note;
         context.StudentNotes.Update(note);

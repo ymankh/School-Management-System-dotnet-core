@@ -1,9 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-
-namespace SchoolSystemTask.Models;
+﻿namespace SchoolSystemTask.Models;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 public class MyDbContext(DbContextOptions<MyDbContext> options) : DbContext(options)
 {
