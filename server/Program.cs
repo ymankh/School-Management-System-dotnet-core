@@ -1,9 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+using SchoolSystemTask.Data;
+
 namespace SchoolSystemTask;
 public class Program
 {
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                               ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
         builder.Services.AddCors(options =>
         {
@@ -23,6 +28,17 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         builder.Services.AddControllers();
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        {
+            if (builder.Environment.IsDevelopment())
+            {
+                options.UseSqlite(connectionString);
+            }
+            else
+            {
+                options.UseNpgsql(connectionString);
+            }
+        });
 
         var app = builder.Build();
 
