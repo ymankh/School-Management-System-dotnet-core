@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SchoolSystemTask.Data;
+using SchoolSystemTask.Modules.Exams.Application;
+using System.Text.Json.Serialization;
 
 namespace SchoolSystemTask;
 public class Program
@@ -27,7 +29,11 @@ public class Program
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
-        builder.Services.AddControllers();
+        builder.Services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
+        builder.Services.AddSingleton<ExamEngineStore>();
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
             if (builder.Environment.IsDevelopment())
