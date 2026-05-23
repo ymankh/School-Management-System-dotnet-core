@@ -1,94 +1,75 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.EntityFrameworkCore;
-using SchoolSystemTask.Helpers;
-using SchoolSystemTask.Models;
-using SchoolSystemTask.Repositories;
-using SchoolSystemTask.services;
-
 namespace SchoolSystemTask;
 public class Program
 {
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        // Add DbContext with SQLite connection
-        builder.Services.AddDbContext<MyDbContext>(options =>
-            options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-        // Add services to the container.
-        builder.Services.AddControllersWithViews();
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("ReactClient", policy =>
+            {
+                policy.WithOrigins(
+                        "http://localhost:5173",
+                        "https://localhost:5173",
+                        "http://localhost:4173",
+                        "https://localhost:4173")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            });
+        });
 
-        // Add API controllers support
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen();
         builder.Services.AddControllers();
-
-        // Add session services
-        builder.Services.AddSession(options =>
-        {
-            options.IdleTimeout = TimeSpan.FromDays(30);
-            options.Cookie.HttpOnly = true;
-            options.Cookie.IsEssential = true;
-        });
-
-        // Add authentication using cookies
-        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-            .AddCookie(options => { options.LoginPath = "/Home/LoginPage"; });
-
-        // Add authorization with role policies
-        builder.Services.AddAuthorization(options =>
-        {
-            options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Admin"));
-            options.AddPolicy("UserPolicy", policy => policy.RequireRole("User"));
-        });
-
-        // Add PayPal
-        builder.Services.AddScoped<PayPalService>();
-
-        // Add Repositories
-        builder.Services.AddScoped<UserRepository>();
-        builder.Services.AddScoped<TeacherRepository>();
-        builder.Services.AddScoped<ClassesRepository>();
-        builder.Services.AddScoped<StudentsRepository>();
-        builder.Services.AddScoped<ExamsRepository>();
-        builder.Services.AddScoped<StudentNoteRepository>();
-        builder.Services.AddScoped<NoteTypesRepository>();
-        builder.Services.AddScoped<AbsenceRepository>();
-        builder.Services.AddScoped<AssignmentSubmissionRepository>();
-        builder.Services.AddScoped<ActionHistoryRepository>();
-
-        // Solve possible object cycle was detected
-        builder.Services.AddControllers().AddNewtonsoftJson(options =>
-        {
-            options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-        });
-
-        builder.Services.AddSingleton<PayPalService>();
 
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
         {
-            app.UseExceptionHandler("/Home/Error");
+            app.UseExceptionHandler("/api/errors");
             app.UseHsts();
         }
+        else
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI();
+        }
 
-        app.UseHttpsRedirection();
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+        }
         app.UseStaticFiles();
         app.UseRouting();
+        app.UseCors("ReactClient");
 
-        // Enable session middleware
-        app.UseSession();
-
-        // Enable middleware for authentication and authorization
-        app.UseAuthentication();
-        app.UseAuthorization();
-
-        app.MapControllerRoute(
-            name: "default",
-            pattern: "{controller=Home}/{action=HomePage}/{id?}");
-
-        // Maps API controller routes
         app.MapControllers();
+        app.MapFallback(async context =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                await context.Response.WriteAsJsonAsync(new { error = "API endpoint not found." });
+                return;
+            }
+
+            var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+            var indexPath = Path.Combine(webRoot, "client", "index.html");
+
+            if (File.Exists(indexPath))
+            {
+                context.Response.ContentType = "text/html; charset=utf-8";
+                await context.Response.SendFileAsync(indexPath);
+                return;
+            }
+
+            context.Response.ContentType = "text/plain; charset=utf-8";
+            await context.Response.WriteAsync(
+                "React client is not built yet. Run `npm run dev` from the client folder during development, or `npm run build` to serve it from .NET.");
+        });
 
         app.Run();
     }
