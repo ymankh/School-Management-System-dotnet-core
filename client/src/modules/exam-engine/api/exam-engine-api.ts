@@ -58,6 +58,10 @@ export async function getExam(id: number) {
   return request<Exam>(`/exams/${id}`)
 }
 
+export async function getStudentExamAttempt(studentId: number, examId: number) {
+  return request<ExamAttempt>(`/students/${studentId}/exams/${examId}/attempt`)
+}
+
 export async function getQuestionBank() {
   return request<QuestionBankItem[]>("/question-bank")
 }

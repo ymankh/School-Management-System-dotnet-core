@@ -31,6 +31,7 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
 | Results | Published marks only, score, feedback, breakdown | Partial | Results exist; visibility and feedback completeness need review. |
 | Randomization | Freeze delivered order and option order per attempt | Partial | EF-backed store builds and persists attempt order; tests need expansion. |
 | Grading | Auto/manual grading and mark publishing | Partial | Store grading exists; edge-case tests need expansion. |
+| Frontend architecture | Thin pages, module components, module utilities/types | Partial | `ExamEnginePage` is now orchestration-only; teacher/student/shared UI and helpers are split into module folders. More granular builder subcomponents may still be useful as the builder grows. |
 
 ## Completed Feature Slices
 
@@ -49,6 +50,17 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
   - Replaced server-generated teacher/owner metadata with request-owned values.
   - Made file answer upload validation use the question's DB-backed `FileUploadRule`.
   - Removed hardcoded result feedback/time text and now renders attempt timestamps plus stored answer feedback.
+- 2026-05-25: Split the massive exam-engine page into module-owned frontend files.
+  - Reduced `client/src/modules/exam-engine/pages/exam-engine-page.tsx` from 2137 lines to 342 lines.
+  - Moved teacher dashboard, builder, question bank, grading, and subject-skill UI into `components/teacher-portal.tsx`.
+  - Moved student exam list, player, answer inputs, review, and results into `components/student-portal.tsx`.
+  - Moved shared UI primitives into `components/exam-engine-shared.tsx`.
+  - Moved date/time/filter helpers into `utils/exam-engine-formatters.ts`.
+  - Moved safe exam/attempt/question accessors and answer parsing into `utils/exam-engine-model.ts`.
+  - Moved page-panel route state aliases into `types/exam-engine-ui.types.ts`.
+  - Added a DB-backed completed-attempt read endpoint so completed student result cards load stored exam/attempt data instead of relying on in-memory state.
+  - Verified with `npm run build` and `TMPDIR=/tmp npm test`.
+  - Backend build could not be completed from WSL because Windows `dotnet.exe` failed before MSBuild with `UtilBindVsockAnyPort: socket failed 1`.
 
 ## Next Feature Queue
 
@@ -75,3 +87,6 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
   - Findings: hardcoded countdown, client-expanded file picker rules, static add-group payload, static local question draft defaults, runtime-only schema path, and stale progress docs.
   - Fixes applied by deriving countdown from exam end time, using DB MIME rules directly, removing static add-group/question draft persistence paths, adding a checked-in migration, and updating this progress file.
 - 2026-05-25: Review agent `Volta` passed the final static-data removal review with no remaining scoped findings.
+- 2026-05-25: Review agent `Helmholtz` passed the frontend architecture split direction and found two scoped risks.
+  - Findings: `ExamBuilder` used a fresh fallback `groups` array as an effect dependency, and completed student result cards switched panels without loading stored exam/attempt data.
+  - Fixes applied in the same slice by memoizing exam groups and adding `GET /api/students/{studentId}/exams/{id}/attempt` plus frontend result loading.

@@ -155,6 +155,19 @@ public sealed class ExamsController(ExamEngineStore store, IWebHostEnvironment e
         return attempt is null ? NotFound() : Ok(ExamEngineStore.ToAttemptDto(attempt));
     }
 
+    [HttpGet("students/{studentId:int}/exams/{id:int}/attempt")]
+    public IActionResult GetStudentAttempt(int studentId, int id)
+    {
+        var attempt = store.GetStudentAttempt(id, studentId);
+        if (attempt is null)
+        {
+            return NotFound();
+        }
+
+        var exam = store.GetExam(id);
+        return Ok(ExamEngineStore.ToAttemptDto(attempt, exam?.MarkPublished == true));
+    }
+
     [HttpPut("attempts/{attemptId:int}/answers/{questionId:int}")]
     public IActionResult SaveAnswer(int attemptId, int questionId, SaveAnswerRequest request)
     {

@@ -350,6 +350,14 @@ public sealed class ExamEngineStore(ApplicationDbContext db)
         return QueryAttempts(asTracking: false).FirstOrDefault(item => item.Id == attempt.Id);
     }
 
+    public ExamAttempt? GetStudentAttempt(int examId, int studentId)
+    {
+        return QueryAttempts(asTracking: false)
+            .Where(item => item.ExamId == examId && item.StudentId == studentId)
+            .OrderByDescending(item => item.SubmittedAtUtc ?? item.StartedAtUtc)
+            .FirstOrDefault();
+    }
+
     public StudentAnswer? SaveAnswer(int attemptId, int questionId, SaveAnswerRequest request)
     {
         var attempt = QueryAttempts(asTracking: true).FirstOrDefault(item => item.Id == attemptId);
