@@ -79,9 +79,19 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge className={cn("border", statusTone[status])} variant="outline">{status}</Badge>
 }
 
-export function IconButton({ icon: Icon, onClick, title }: { icon: typeof Eye; onClick?: () => void; title: string }) {
+export function IconButton({
+  disabled,
+  icon: Icon,
+  onClick,
+  title,
+}: {
+  disabled?: boolean
+  icon: typeof Eye
+  onClick?: () => void
+  title: string
+}) {
   return (
-    <Button title={title} variant="ghost" size="icon" onClick={onClick}>
+    <Button disabled={disabled} title={title} variant="ghost" size="icon" onClick={onClick}>
       <Icon className="size-4" />
     </Button>
   )

@@ -75,6 +75,7 @@ export function TeacherPortal({
   openExam,
   panel,
   publishExam,
+  publishingExamId,
   publishMarks,
   questionBank,
   setDashboardFilters,
@@ -91,6 +92,7 @@ export function TeacherPortal({
   openExam: (examId: number, panel: TeacherPanel) => void
   panel: TeacherPanel
   publishExam: (examId: number) => void
+  publishingExamId?: number | null
   publishMarks: (examId: number) => void
   questionBank: QuestionBankItem[]
   setDashboardFilters: (filters: Required<ExamDashboardFilters>) => void
@@ -133,6 +135,7 @@ export function TeacherPortal({
           duplicateExam={duplicateExam}
           openExam={openExam}
           publishExam={publishExam}
+          publishingExamId={publishingExamId}
           setFilters={setDashboardFilters}
           setPanel={setPanel}
         />
@@ -142,6 +145,7 @@ export function TeacherPortal({
           exam={activeExam}
           importFromBank={importFromBank}
           publishExam={publishExam}
+          isPublishing={publishingExamId === activeExam.id}
           questionBank={questionBank}
           updateExam={updateExam}
           uploadAttachment={uploadAttachment}
@@ -170,6 +174,7 @@ function TeacherDashboard({
   filters,
   openExam,
   publishExam,
+  publishingExamId,
   setFilters,
   setPanel,
 }: {
@@ -179,6 +184,7 @@ function TeacherDashboard({
   filters: Required<ExamDashboardFilters>
   openExam: (examId: number, panel: TeacherPanel) => void
   publishExam: (examId: number) => void
+  publishingExamId?: number | null
   setFilters: (filters: Required<ExamDashboardFilters>) => void
   setPanel: (panel: TeacherPanel) => void
 }) {
@@ -305,7 +311,12 @@ function TeacherDashboard({
                       <div className="flex justify-end gap-1">
                         <IconButton title="Preview" icon={Eye} onClick={() => openExam(exam.id, "builder")} />
                         <IconButton title="Edit" icon={Settings} onClick={() => openExam(exam.id, "builder")} />
-                        <IconButton title="Publish" icon={CheckCircle2} onClick={() => publishExam(exam.id)} />
+                        <IconButton
+                          disabled={publishingExamId === exam.id || exam.isPublished}
+                          title={exam.isPublished ? "Published" : "Publish"}
+                          icon={CheckCircle2}
+                          onClick={() => publishExam(exam.id)}
+                        />
                         <IconButton title="Duplicate" icon={Copy} onClick={() => duplicateExam(exam.id)} />
                         <IconButton title="Archive" icon={Archive} onClick={() => archiveExam(exam.id)} />
                         <IconButton title="Results" icon={ListChecks} onClick={() => openExam(exam.id, "grading")} />
@@ -326,6 +337,7 @@ function ExamBuilder({
   exam,
   importFromBank,
   publishExam,
+  isPublishing,
   questionBank,
   updateExam,
   uploadAttachment,
@@ -333,6 +345,7 @@ function ExamBuilder({
   exam: Exam
   importFromBank: (examId: number, groupId: number, itemIds: number[]) => void
   publishExam: (examId: number) => void
+  isPublishing?: boolean
   questionBank: QuestionBankItem[]
   updateExam: (exam: Exam) => void
   uploadAttachment: (examId: number, file: File) => void
@@ -644,7 +657,10 @@ function ExamBuilder({
           <div className="rounded-md border bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
             Publishing validates schedule, marks, group randomization, upload limits, and at least one question per visible group.
           </div>
-          <Button className="w-full" onClick={() => publishExam(exam.id)}><CheckCircle2 className="size-4" /> Publish Exam</Button>
+          <Button className="w-full" disabled={isPublishing || exam.isPublished} onClick={() => publishExam(exam.id)}>
+            <CheckCircle2 className="size-4" />
+            {exam.isPublished ? "Published" : isPublishing ? "Publishing..." : "Publish Exam"}
+          </Button>
         </CardContent>
       </Card>
     </div>

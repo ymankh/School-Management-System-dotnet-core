@@ -28,7 +28,7 @@ import {
 } from "@/modules/exam-engine/components/exam-engine-shared"
 import { StudentPortal } from "@/modules/exam-engine/components/student-portal"
 import { TeacherPortal } from "@/modules/exam-engine/components/teacher-portal"
-import type { Exam, ExamAttempt, ExamQuestion, StudentAnswer } from "@/modules/exam-engine/types/exam-engine.types"
+import type { Exam, ExamAttempt, ExamDashboard, ExamQuestion, StudentAnswer } from "@/modules/exam-engine/types/exam-engine.types"
 import type { MainView, StudentPanel, TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 import { getAttemptQuestions, getExamQuestions } from "@/modules/exam-engine/utils/exam-engine-model"
 import { Button } from "@/shared/components/ui/button"
@@ -42,6 +42,7 @@ function ExamEnginePage() {
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null)
   const [answers, setAnswers] = useState<Record<number, StudentAnswer>>({})
   const [studentIdInput, setStudentIdInput] = useState("")
+  const [teacherNotice, setTeacherNotice] = useState<string | null>(null)
   const [dashboardFilters, setDashboardFilters] = useState<Required<ExamDashboardFilters>>({
     className: "all",
     date: "all",
@@ -118,8 +119,36 @@ function ExamEnginePage() {
 
   const publishExamMutation = useMutation({
     mutationFn: publishExam,
+    onMutate: () => {
+      setTeacherNotice(null)
+    },
     onSuccess: (exam) => {
       setActiveExamOverride(exam)
+      setTeacherNotice(`${exam.title} is now ${exam.status}.`)
+      queryClient.setQueriesData<ExamDashboard>({ queryKey: ["exam-dashboard"] }, (dashboard) => {
+        if (!dashboard) {
+          return dashboard
+        }
+
+        const exams = dashboard.exams.map((summary) =>
+          summary.id === exam.id
+            ? {
+                ...summary,
+                isPublished: exam.isPublished,
+                isVisible: exam.isVisible,
+                markPublished: exam.markPublished,
+                status: exam.status,
+              }
+            : summary,
+        )
+
+        return {
+          ...dashboard,
+          activeExams: exams.filter((summary) => summary.status === "Active").length,
+          drafts: exams.filter((summary) => summary.status === "Draft").length,
+          exams,
+        }
+      })
       void queryClient.invalidateQueries({ queryKey: ["exam-dashboard"] })
       void queryClient.invalidateQueries({ queryKey: ["student-exams"] })
     },
@@ -312,6 +341,11 @@ function ExamEnginePage() {
               API error: {apiError instanceof Error ? apiError.message : "The exam API request failed."}
             </div>
           )}
+          {teacherNotice && mainView === "teacher" && (
+            <div className="border-b border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary lg:px-6">
+              {teacherNotice}
+            </div>
+          )}
 
           <ErrorBoundary fallback={<PanelCrashFallback />}>
             {apiError && !activeExam && dashboardQuery.isError ? (
@@ -327,6 +361,7 @@ function ExamEnginePage() {
                 openExam={handleOpenTeacherExam}
                 panel={teacherPanel}
                 publishExam={(examId) => publishExamMutation.mutate(examId)}
+                publishingExamId={publishExamMutation.isPending ? publishExamMutation.variables : null}
                 publishMarks={(examId) => publishMarksMutation.mutate(examId)}
                 questionBank={questionBank}
                 setDashboardFilters={setDashboardFilters}
