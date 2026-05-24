@@ -308,7 +308,7 @@ function ExamEnginePage() {
           </header>
 
           {apiError && (
-            <div className="border-b border-destructive/30 bg-red-50 px-4 py-3 text-sm text-red-800 lg:px-6">
+            <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive lg:px-6">
               API error: {apiError instanceof Error ? apiError.message : "The exam API request failed."}
             </div>
           )}

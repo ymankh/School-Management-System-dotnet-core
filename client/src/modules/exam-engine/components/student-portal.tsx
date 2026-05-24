@@ -252,7 +252,7 @@ function ExamPlayer({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {exam.focusModeEnabled && <Badge className="gap-1" variant="secondary"><Eye className="size-3" /> Focus Mode Active</Badge>}
-          <Badge className="gap-1 border-red-200 bg-red-50 text-red-700" variant="outline"><Clock className="size-3" /> {remainingTime}</Badge>
+          <Badge className="gap-1 border-destructive/30 bg-destructive/10 text-destructive" variant="outline"><Clock className="size-3" /> {remainingTime}</Badge>
           <Button variant="outline" size="sm" onClick={onShowReview}><ListChecks className="size-4" /> Review</Button>
         </div>
       </div>
@@ -650,7 +650,7 @@ function QuestionMap({
               className={cn(
                 "flex size-10 shrink-0 items-center justify-center rounded-md border text-sm font-medium transition hover:bg-muted sm:size-11 xl:size-10",
                 answers[question.id] && "bg-primary text-primary-foreground",
-                answers[question.id]?.flaggedForReview && "bg-amber-100 text-amber-900",
+                answers[question.id]?.flaggedForReview && "bg-accent text-accent-foreground",
                 selectedQuestionId === question.id && "ring-2 ring-ring",
               )}
               type="button"
@@ -778,7 +778,7 @@ function ReviewSubmit({
           {questions.map((question, index) => (
             <div key={question.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
               <span>Question {index + 1} • {question.type}</span>
-              <Badge className={answers[question.id]?.flaggedForReview ? "border-amber-200 bg-amber-50 text-amber-800" : ""} variant="outline">
+              <Badge className={answers[question.id]?.flaggedForReview ? "border-accent bg-accent text-accent-foreground" : ""} variant="outline">
                 {answers[question.id]?.flaggedForReview ? "Flagged for Review" : answers[question.id] ? "Answered" : "Unanswered"}
               </Badge>
             </div>
