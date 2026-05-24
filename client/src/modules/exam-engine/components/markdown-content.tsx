@@ -29,6 +29,10 @@ const mathSchema = {
   ],
   attributes: {
     ...defaultSchema.attributes,
+    code: [
+      ...(defaultSchema.attributes?.code ?? []),
+      ["className", /^language-math$/, /^math-display$/, /^math-inline$/],
+    ],
     annotation: ["encoding"],
     div: [...(defaultSchema.attributes?.div ?? []), ["className", /^math-display$/, /^katex-display$/]],
     math: [["xmlns", "http://www.w3.org/1998/Math/MathML"]],
@@ -67,7 +71,16 @@ const mathSchema = {
   },
 }
 
+function normalizeMathMarkdown(content: string) {
+  return content
+    .replace(/`(\$[^`\n]+\$)`/g, "$1")
+    .replace(/`(\\\([^`\n]+\\\))`/g, "$1")
+    .replace(/`(\\\[[\s\S]*?\\\])`/g, "$1")
+}
+
 function MarkdownContent({ content, className }: MarkdownContentProps) {
+  const normalizedContent = normalizeMathMarkdown(content)
+
   return (
     <div
       className={cn(
@@ -75,11 +88,14 @@ function MarkdownContent({ content, className }: MarkdownContentProps) {
         className,
       )}
     >
-      <Markdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, [rehypeSanitize, mathSchema]]}>
-        {content}
+      <Markdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[[rehypeSanitize, mathSchema], [rehypeKatex, { strict: false, throwOnError: false }]]}
+      >
+        {normalizedContent}
       </Markdown>
     </div>
   )
 }
 
-export { MarkdownContent }
+export { MarkdownContent, normalizeMathMarkdown }
