@@ -76,6 +76,24 @@ public partial class AddExamEngineTables : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "SubjectSkills",
+            columns: table => new
+            {
+                Id = table.Column<int>(nullable: false)
+                    .Annotation("Sqlite:Autoincrement", true)
+                    .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                ClassSubjectId = table.Column<int>(nullable: false),
+                Subject = table.Column<string>(nullable: false),
+                Name = table.Column<string>(nullable: false),
+                DescriptionMarkdown = table.Column<string>(nullable: false),
+                DisplayOrder = table.Column<int>(nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_SubjectSkills", x => x.Id);
+            });
+
+        migrationBuilder.CreateTable(
             name: "QuestionGroups",
             columns: table => new
             {
@@ -246,6 +264,7 @@ public partial class AddExamEngineTables : Migration
         migrationBuilder.CreateIndex("IX_QuestionOptions_QuestionId", "QuestionOptions", "QuestionId");
         migrationBuilder.CreateIndex("IX_QuestionGroups_ExamId", "QuestionGroups", "ExamId");
         migrationBuilder.CreateIndex("IX_StudentAnswers_AttemptId", "StudentAnswers", "AttemptId");
+        migrationBuilder.CreateIndex("IX_SubjectSkills_ClassSubjectId_Name", "SubjectSkills", new[] { "ClassSubjectId", "Name" }, unique: true);
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
@@ -257,6 +276,7 @@ public partial class AddExamEngineTables : Migration
         migrationBuilder.DropTable("QuestionMatchPairs");
         migrationBuilder.DropTable("QuestionOptions");
         migrationBuilder.DropTable("StudentAnswers");
+        migrationBuilder.DropTable("SubjectSkills");
         migrationBuilder.DropTable("ExamQuestions");
         migrationBuilder.DropTable("ExamAttempts");
         migrationBuilder.DropTable("QuestionGroups");

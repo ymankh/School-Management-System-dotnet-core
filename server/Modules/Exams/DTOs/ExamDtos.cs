@@ -60,6 +60,13 @@ public sealed record CreateQuestionGroupRequest(
     int? QuestionsToShow,
     bool ShuffleQuestions);
 
+public sealed record CreateSubjectSkillRequest(
+    int ClassSubjectId,
+    string Subject,
+    string Name,
+    string DescriptionMarkdown,
+    int DisplayOrder);
+
 public sealed record UpdateQuestionGroupRequest(
     string Title,
     string InstructionsMarkdown,

@@ -78,6 +78,15 @@ export type QuestionGroup = {
   questions: ExamQuestion[]
 }
 
+export type SubjectSkill = {
+  id: number
+  classSubjectId: number
+  subject: string
+  name: string
+  descriptionMarkdown: string
+  displayOrder: number
+}
+
 export type Exam = {
   id: number
   title: string

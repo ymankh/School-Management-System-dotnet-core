@@ -45,11 +45,13 @@ import {
 
 import {
   archiveExam,
+  createSubjectSkill,
   duplicateExam,
   getGradingAnswers,
   getExam,
   getExamDashboard,
   getQuestionBank,
+  getSubjectSkills,
   getStudentExams,
   gradeAnswer,
   publishExam,
@@ -74,6 +76,7 @@ import type {
   QuestionType,
   QuestionBankItem,
   StudentAnswer,
+  SubjectSkill,
 } from "@/modules/exam-engine/types/exam-engine.types"
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
@@ -745,31 +748,56 @@ function ExamBuilder({
   const [editableGroups, setEditableGroups] = useState<QuestionGroup[]>(groups)
   const [selectedBankItems, setSelectedBankItems] = useState<number[]>([])
   const [attachment, setAttachment] = useState<File | null>(null)
+  const queryClient = useQueryClient()
+  const subjectSkillsQuery = useQuery({
+    queryKey: ["subject-skills", exam.classSubjectId],
+    queryFn: () => getSubjectSkills(exam.classSubjectId),
+  })
+  const createSubjectSkillMutation = useMutation({
+    mutationFn: createSubjectSkill,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["subject-skills", exam.classSubjectId] })
+    },
+  })
+  const subjectSkills = subjectSkillsQuery.data ?? []
 
   useEffect(() => {
     setEditableGroups(groups)
   }, [exam.id, groups])
 
-  const addGroupDraft = () => {
-    const title = window.prompt("Group title")
-    if (!title?.trim()) {
+  const addSkill = () => {
+    const name = window.prompt(`${exam.subject} skill name`)
+    if (!name?.trim()) {
       return
     }
 
-    const instructionsMarkdown = window.prompt("Group instructions Markdown") ?? ""
-    const selectionPolicyInput = window.prompt("Selection policy: show-all or pick-random")
+    const descriptionMarkdown = window.prompt("Skill description Markdown") ?? ""
+    const displayOrderInput = window.prompt("Display order")
+    const displayOrder = displayOrderInput ? Number.parseInt(displayOrderInput, 10) : subjectSkills.length + 1
+
+    createSubjectSkillMutation.mutate({
+      classSubjectId: exam.classSubjectId,
+      subject: exam.subject,
+      name: name.trim(),
+      descriptionMarkdown,
+      displayOrder: Number.isInteger(displayOrder) ? displayOrder : subjectSkills.length + 1,
+    })
+  }
+
+  const addGroupFromSkill = (skill: SubjectSkill) => {
+    const selectionPolicyInput = window.prompt(`Selection policy for ${skill.name}: show-all or pick-random`)
     const selectionPolicy = selectionPolicyInput === "pick-random" ? "pick-random" : "show-all"
     const questionsToShowInput = selectionPolicy === "pick-random" ? window.prompt("Questions to show") : null
     const parsedQuestionsToShow = questionsToShowInput ? Number.parseInt(questionsToShowInput, 10) : Number.NaN
-    const shuffleQuestions = window.confirm("Shuffle questions in this group?")
+    const shuffleQuestions = window.confirm(`Shuffle questions in ${skill.name}?`)
 
     setEditableGroups((currentGroups) => [
       ...currentGroups,
       {
         id: -Date.now(),
         examId: exam.id,
-        title: title.trim(),
-        instructionsMarkdown,
+        title: skill.name,
+        instructionsMarkdown: skill.descriptionMarkdown,
         authoringOrder: currentGroups.length + 1,
         selectionPolicy,
         questionsToShow: Number.isInteger(parsedQuestionsToShow) && parsedQuestionsToShow > 0 ? parsedQuestionsToShow : null,
@@ -819,7 +847,28 @@ function ExamBuilder({
               </div>
             </div>
           ))}
-          <Button className="w-full" variant="outline" size="sm" onClick={addGroupDraft}><Plus className="size-4" /> Add Group</Button>
+          <div className="rounded-md border bg-background p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="text-sm font-medium">Subject Skills</div>
+              <Button variant="outline" size="sm" onClick={addSkill}><Plus className="size-4" /> Skill</Button>
+            </div>
+            <div className="space-y-2">
+              {subjectSkills.map((skill) => (
+                <button
+                  key={skill.id}
+                  className="w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
+                  type="button"
+                  onClick={() => addGroupFromSkill(skill)}
+                >
+                  <span className="font-medium">{skill.name}</span>
+                  {skill.descriptionMarkdown && <span className="block text-muted-foreground">{skill.descriptionMarkdown}</span>}
+                </button>
+              ))}
+              {subjectSkills.length === 0 && (
+                <div className="text-xs text-muted-foreground">No skills are defined for this subject yet.</div>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 

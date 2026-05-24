@@ -188,6 +188,32 @@ public sealed class ExamEngineStore(ApplicationDbContext db)
         return group;
     }
 
+    public IReadOnlyList<SubjectSkill> GetSubjectSkills(int classSubjectId)
+    {
+        return db.SubjectSkills
+            .AsNoTracking()
+            .Where(skill => skill.ClassSubjectId == classSubjectId)
+            .OrderBy(skill => skill.DisplayOrder)
+            .ThenBy(skill => skill.Name)
+            .ToList();
+    }
+
+    public SubjectSkill CreateSubjectSkill(CreateSubjectSkillRequest request)
+    {
+        var skill = new SubjectSkill
+        {
+            ClassSubjectId = request.ClassSubjectId,
+            Subject = request.Subject,
+            Name = request.Name,
+            DescriptionMarkdown = request.DescriptionMarkdown,
+            DisplayOrder = request.DisplayOrder
+        };
+
+        db.SubjectSkills.Add(skill);
+        db.SaveChanges();
+        return skill;
+    }
+
     public ExamQuestion? AddQuestion(int groupId, CreateQuestionRequest request)
     {
         var group = db.QuestionGroups

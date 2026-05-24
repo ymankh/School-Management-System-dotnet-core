@@ -13,6 +13,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
     public DbSet<QuestionMatchPair> QuestionMatchPairs => Set<QuestionMatchPair>();
     public DbSet<ExamAttachment> ExamAttachments => Set<ExamAttachment>();
+    public DbSet<SubjectSkill> SubjectSkills => Set<SubjectSkill>();
     public DbSet<ExamStudentAssignment> ExamStudentAssignments => Set<ExamStudentAssignment>();
     public DbSet<ExamAttempt> ExamAttempts => Set<ExamAttempt>();
     public DbSet<AttemptQuestion> AttemptQuestions => Set<AttemptQuestion>();
@@ -57,6 +58,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<QuestionOption>().HasKey(option => option.Id);
         modelBuilder.Entity<QuestionMatchPair>().HasKey(pair => pair.Id);
         modelBuilder.Entity<ExamAttachment>().HasKey(attachment => attachment.Id);
+        modelBuilder.Entity<SubjectSkill>(entity =>
+        {
+            entity.HasKey(skill => skill.Id);
+            entity.HasIndex(skill => new { skill.ClassSubjectId, skill.Name }).IsUnique();
+        });
         modelBuilder.Entity<ExamStudentAssignment>(entity =>
         {
             entity.HasKey(assignment => assignment.Id);

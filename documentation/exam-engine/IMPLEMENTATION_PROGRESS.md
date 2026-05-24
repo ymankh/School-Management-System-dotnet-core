@@ -17,7 +17,7 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
 | Area | Requirement | Status | Notes |
 | --- | --- | --- | --- |
 | Content | Markdown, GFM, math, KaTeX, sanitize | Done | `MarkdownContent` component and tests exist. |
-| Data model | Exams, groups, questions, options, attempts, answers | Partial | Exam engine now uses EF Core `ApplicationDbContext` tables; migration generation still needs a .NET SDK run. |
+| Data model | Exams, groups, questions, options, attempts, answers | Partial | Exam engine now uses EF Core `ApplicationDbContext` tables with a checked-in migration schema path. |
 | Teacher dashboard | Search, filters, metrics, statuses, actions | Partial | Search covers teacher metadata; status/class/subject/date/type filters and selected-row actions are implemented. Remaining work: richer preview behavior and frontend interaction tests. |
 | Exam builder | Multi-step content/settings/review, navigator, preview, settings | Partial | Builder UI exists; completeness review still needed. |
 | Question groups | Title, instructions, selection policy, shuffle, summary | Partial | Backend and UI support basic groups. |
@@ -57,7 +57,7 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
 3. Complete explicit file-upload answer state transitions.
 4. Complete student result visibility around `markPublished`.
 5. Add frontend interaction tests for teacher dashboard filters and row actions.
-6. Generate and apply EF Core migrations for the exam-engine tables once the .NET SDK is available.
+6. Replace temporary student-ID entry with authenticated student context once authentication is wired into the exam engine.
 
 ## Review Log
 
@@ -71,3 +71,7 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
 - 2026-05-25: Review agent `Linnaeus` failed the first static-data removal pass.
   - Findings: hardcoded exam `1`, hardcoded student `1`, server-generated teacher/owner metadata, no schema path, hardcoded results content, hardcoded file upload rules, and stale progress docs.
   - Fixes applied in the same slice; final re-review pending.
+- 2026-05-25: Review agent `Newton` failed the second static-data removal pass.
+  - Findings: hardcoded countdown, client-expanded file picker rules, static add-group payload, static local question draft defaults, runtime-only schema path, and stale progress docs.
+  - Fixes applied by deriving countdown from exam end time, using DB MIME rules directly, removing static add-group/question draft persistence paths, adding a checked-in migration, and updating this progress file.
+- 2026-05-25: Review agent `Volta` passed the final static-data removal review with no remaining scoped findings.

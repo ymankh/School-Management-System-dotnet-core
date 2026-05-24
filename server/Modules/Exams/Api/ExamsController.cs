@@ -61,6 +61,23 @@ public sealed class ExamsController(ExamEngineStore store, IWebHostEnvironment e
         return group is null ? NotFound() : Ok(group);
     }
 
+    [HttpGet("class-subjects/{classSubjectId:int}/skills")]
+    public IActionResult GetSubjectSkills(int classSubjectId)
+    {
+        return Ok(store.GetSubjectSkills(classSubjectId));
+    }
+
+    [HttpPost("class-subjects/{classSubjectId:int}/skills")]
+    public IActionResult CreateSubjectSkill(int classSubjectId, CreateSubjectSkillRequest request)
+    {
+        if (classSubjectId != request.ClassSubjectId)
+        {
+            return BadRequest(new { error = "The class subject id in the route and request body must match." });
+        }
+
+        return Ok(store.CreateSubjectSkill(request));
+    }
+
     [HttpPost("groups/{groupId:int}/questions")]
     public IActionResult AddQuestion(int groupId, CreateQuestionRequest request)
     {

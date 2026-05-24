@@ -140,6 +140,16 @@ public sealed class ExamAttachment
     public long SizeBytes { get; set; }
 }
 
+public sealed class SubjectSkill
+{
+    public int Id { get; set; }
+    public int ClassSubjectId { get; set; }
+    public string Subject { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string DescriptionMarkdown { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+}
+
 public sealed class ExamStudentAssignment
 {
     public int Id { get; set; }

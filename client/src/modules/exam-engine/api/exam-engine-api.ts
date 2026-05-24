@@ -7,6 +7,7 @@ import type {
   ExamSummary,
   QuestionBankItem,
   StudentAnswer,
+  SubjectSkill,
 } from "@/modules/exam-engine/types/exam-engine.types"
 
 const api = axios.create({
@@ -59,6 +60,23 @@ export async function getExam(id: number) {
 
 export async function getQuestionBank() {
   return request<QuestionBankItem[]>("/question-bank")
+}
+
+export async function getSubjectSkills(classSubjectId: number) {
+  return request<SubjectSkill[]>(`/class-subjects/${classSubjectId}/skills`)
+}
+
+export async function createSubjectSkill(payload: {
+  classSubjectId: number
+  subject: string
+  name: string
+  descriptionMarkdown: string
+  displayOrder: number
+}) {
+  return request<SubjectSkill>(`/class-subjects/${payload.classSubjectId}/skills`, {
+    method: "POST",
+    data: payload,
+  })
 }
 
 export async function startAttempt(examId: number, studentId: number) {
