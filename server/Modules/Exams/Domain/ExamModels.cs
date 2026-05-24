@@ -79,7 +79,7 @@ public sealed class QuestionGroup
     public string Title { get; set; } = string.Empty;
     public string InstructionsMarkdown { get; set; } = string.Empty;
     public int AuthoringOrder { get; set; }
-    public string SelectionPolicy { get; set; } = "show-all";
+    public string SelectionPolicy { get; set; } = string.Empty;
     public int? QuestionsToShow { get; set; }
     public bool ShuffleQuestions { get; set; }
     public List<ExamQuestion> Questions { get; set; } = [];
@@ -94,10 +94,10 @@ public sealed class ExamQuestion
     public string ReferenceMarkdown { get; set; } = string.Empty;
     public decimal Mark { get; set; }
     public int AuthoringOrder { get; set; }
-    public bool IsRequired { get; set; } = true;
-    public string Difficulty { get; set; } = "Medium";
+    public bool IsRequired { get; set; }
+    public string Difficulty { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = [];
-    public string GradingRule { get; set; } = "manual";
+    public string GradingRule { get; set; } = string.Empty;
     public bool ShuffleOptions { get; set; }
     public List<QuestionOption> Options { get; set; } = [];
     public List<QuestionMatchPair> MatchPairs { get; set; } = [];

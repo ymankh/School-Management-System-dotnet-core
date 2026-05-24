@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using SchoolSystemTask.Modules.Exams.Domain;
 
@@ -41,7 +43,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasKey(question => question.Id);
             entity.Property(question => question.Type).HasConversion<string>();
             entity.Property(question => question.Mark).HasPrecision(10, 2);
-            entity.OwnsOne(question => question.FileUploadRule);
+            entity.Property(question => question.Tags).HasJsonListConversion();
+            entity.Property(question => question.OrderingItems).HasJsonListConversion();
+            entity.Property(question => question.AcceptedAnswers).HasJsonListConversion();
+            entity.OwnsOne(question => question.FileUploadRule, rule =>
+            {
+                rule.Property(item => item.AcceptedContentTypes).HasJsonListConversion();
+            });
             entity.HasMany(question => question.Options).WithOne().HasForeignKey(option => option.QuestionId).OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(question => question.MatchPairs).WithOne().HasForeignKey(pair => pair.QuestionId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -64,7 +72,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasMany(attempt => attempt.Answers).WithOne().HasForeignKey(answer => answer.AttemptId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<AttemptQuestion>().HasKey(question => question.Id);
+        modelBuilder.Entity<AttemptQuestion>(entity =>
+        {
+            entity.HasKey(question => question.Id);
+            entity.Property(question => question.DeliveredOptionOrder).HasJsonListConversion();
+        });
 
         modelBuilder.Entity<StudentAnswer>(entity =>
         {
@@ -78,5 +90,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasKey(item => item.Id);
             entity.HasOne(item => item.Question).WithMany().OnDelete(DeleteBehavior.Cascade);
         });
+    }
+}
+
+internal static class JsonListPropertyBuilderExtensions
+{
+    public static void HasJsonListConversion<T>(this Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<List<T>> propertyBuilder)
+    {
+        propertyBuilder.HasConversion(
+            values => JsonSerializer.Serialize(values, (JsonSerializerOptions?)null),
+            json => JsonSerializer.Deserialize<List<T>>(json, (JsonSerializerOptions?)null) ?? []);
+
+        propertyBuilder.Metadata.SetValueComparer(new ValueComparer<List<T>>(
+            (left, right) => left != null && right != null && left.SequenceEqual(right),
+            values => values.Aggregate(0, (hash, value) => HashCode.Combine(hash, value)),
+            values => values.ToList()));
     }
 }

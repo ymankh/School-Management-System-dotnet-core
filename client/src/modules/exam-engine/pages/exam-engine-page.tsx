@@ -44,7 +44,6 @@ import {
 } from "lucide-react"
 
 import {
-  addQuestionGroup,
   archiveExam,
   duplicateExam,
   getGradingAnswers,
@@ -227,15 +226,6 @@ function ExamEnginePage() {
     },
   })
 
-  const addQuestionGroupMutation = useMutation({
-    mutationFn: addQuestionGroup,
-    onSuccess: () => {
-      if (activeExam) {
-        void queryClient.invalidateQueries({ queryKey: ["exam", activeExam.id] })
-      }
-    },
-  })
-
   const importQuestionsMutation = useMutation({
     mutationFn: ({ examId, groupId, itemIds }: { examId: number; groupId: number; itemIds: number[] }) =>
       importQuestionsFromBank(examId, groupId, itemIds),
@@ -274,7 +264,6 @@ function ExamEnginePage() {
     duplicateExamMutation.error ??
     archiveExamMutation.error
     ?? updateExamMutation.error
-    ?? addQuestionGroupMutation.error
     ?? importQuestionsMutation.error
     ?? uploadExamAttachmentMutation.error
     ?? publishMarksMutation.error
@@ -388,7 +377,6 @@ function ExamEnginePage() {
             ) : mainView === "teacher" ? (
               <TeacherPortal
                 activeExam={activeExam}
-                addGroup={(examId) => addQuestionGroupMutation.mutate(examId)}
                 archiveExam={(examId) => archiveExamMutation.mutate(examId)}
                 dashboard={dashboard}
                 dashboardFilters={dashboardFilters}
@@ -483,7 +471,6 @@ function ApiUnavailable() {
 
 function TeacherPortal({
   activeExam,
-  addGroup,
   archiveExam,
   dashboard,
   dashboardFilters,
@@ -500,7 +487,6 @@ function TeacherPortal({
   uploadAttachment,
 }: {
   activeExam: Exam | null
-  addGroup: (examId: number) => void
   archiveExam: (examId: number) => void
   dashboard: ExamDashboard | null
   dashboardFilters: Required<ExamDashboardFilters>
@@ -557,7 +543,6 @@ function TeacherPortal({
       )}
       {panel === "builder" && activeExam && (
         <ExamBuilder
-          addGroup={addGroup}
           exam={activeExam}
           importFromBank={importFromBank}
           publishExam={publishExam}
@@ -742,7 +727,6 @@ function TeacherDashboard({
 }
 
 function ExamBuilder({
-  addGroup,
   exam,
   importFromBank,
   publishExam,
@@ -750,7 +734,6 @@ function ExamBuilder({
   updateExam,
   uploadAttachment,
 }: {
-  addGroup: (examId: number) => void
   exam: Exam
   importFromBank: (examId: number, groupId: number, itemIds: number[]) => void
   publishExam: (examId: number) => void
@@ -767,37 +750,33 @@ function ExamBuilder({
     setEditableGroups(groups)
   }, [exam.id, groups])
 
-  const addQuestionDraft = (groupId: number) => {
-    setEditableGroups((currentGroups) =>
-      currentGroups.map((group) => {
-        if (group.id !== groupId) {
-          return group
-        }
+  const addGroupDraft = () => {
+    const title = window.prompt("Group title")
+    if (!title?.trim()) {
+      return
+    }
 
-        const questions = getGroupQuestions(group)
-        const question: ExamQuestion = {
-          id: -Date.now(),
-          groupId,
-          type: "ShortAnswer",
-          bodyMarkdown: "New question",
-          referenceMarkdown: "",
-          mark: 1,
-          authoringOrder: questions.length + 1,
-          isRequired: true,
-          difficulty: "Medium",
-          tags: [],
-          gradingRule: "manual",
-          shuffleOptions: false,
-          options: [],
-          matchPairs: [],
-          orderingItems: [],
-          acceptedAnswers: [],
-          fileUploadRule: null,
-        }
+    const instructionsMarkdown = window.prompt("Group instructions Markdown") ?? ""
+    const selectionPolicyInput = window.prompt("Selection policy: show-all or pick-random")
+    const selectionPolicy = selectionPolicyInput === "pick-random" ? "pick-random" : "show-all"
+    const questionsToShowInput = selectionPolicy === "pick-random" ? window.prompt("Questions to show") : null
+    const parsedQuestionsToShow = questionsToShowInput ? Number.parseInt(questionsToShowInput, 10) : Number.NaN
+    const shuffleQuestions = window.confirm("Shuffle questions in this group?")
 
-        return { ...group, questions: [...questions, question] }
-      }),
-    )
+    setEditableGroups((currentGroups) => [
+      ...currentGroups,
+      {
+        id: -Date.now(),
+        examId: exam.id,
+        title: title.trim(),
+        instructionsMarkdown,
+        authoringOrder: currentGroups.length + 1,
+        selectionPolicy,
+        questionsToShow: Number.isInteger(parsedQuestionsToShow) && parsedQuestionsToShow > 0 ? parsedQuestionsToShow : null,
+        shuffleQuestions,
+        questions: [],
+      },
+    ])
   }
 
   const updateQuestionDraft = (groupId: number, questionId: number, patch: Partial<ExamQuestion>) => {
@@ -840,7 +819,7 @@ function ExamBuilder({
               </div>
             </div>
           ))}
-          <Button className="w-full" variant="outline" size="sm" onClick={() => addGroup(exam.id)}><Plus className="size-4" /> Add Group</Button>
+          <Button className="w-full" variant="outline" size="sm" onClick={addGroupDraft}><Plus className="size-4" /> Add Group</Button>
         </CardContent>
       </Card>
 
@@ -874,9 +853,7 @@ function ExamBuilder({
                         {group.selectionPolicy === "pick-random" ? `Pick ${group.questionsToShow}` : "Show all"} • {getGroupQuestions(group).length} questions
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => addQuestionDraft(group.id)}>
-                      <Plus className="size-4" /> Add Question
-                    </Button>
+                    <Badge variant="outline">Use Question Bank to add questions</Badge>
                   </div>
 
                   <div className="space-y-4">
@@ -1335,6 +1312,7 @@ function ExamPlayer({
   const nextQuestion = questions[selectedQuestionIndex + 1]
   const questionPosition = questions.length > 0 ? selectedQuestionIndex + 1 : 0
   const showManualSave = ["Article", "ShortAnswer", "FillInTheBlank"].includes(selectedQuestion.type)
+  const remainingTime = formatRemainingTime(exam.endAtUtc)
 
   return (
     <div className="space-y-4">
@@ -1345,7 +1323,7 @@ function ExamPlayer({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {exam.focusModeEnabled && <Badge className="gap-1" variant="secondary"><Eye className="size-3" /> Focus Mode Active</Badge>}
-          <Badge className="gap-1 border-red-200 bg-red-50 text-red-700" variant="outline"><Clock className="size-3" /> 01:14:22 remaining</Badge>
+          <Badge className="gap-1 border-red-200 bg-red-50 text-red-700" variant="outline"><Clock className="size-3" /> {remainingTime}</Badge>
           <Button variant="outline" size="sm" onClick={onShowReview}><ListChecks className="size-4" /> Review</Button>
         </div>
       </div>
@@ -1536,7 +1514,7 @@ function QuestionAnswerInput({
   if (question.type === "FileUpload") {
     const acceptedTypes = question.fileUploadRule?.acceptedContentTypes ?? []
     const maxSizeBytes = question.fileUploadRule?.maxSizeBytes ?? 0
-    const acceptExtensions = acceptedTypes.includes("application/pdf") ? ".jpg,.jpeg,.png,.pdf" : acceptedTypes.join(",")
+    const acceptExtensions = acceptedTypes.join(",")
     const canUpload = acceptedTypes.length > 0 && maxSizeBytes > 0
 
     return (
@@ -2043,6 +2021,15 @@ function formatTime(value: string) {
 
 function durationMinutes(start: string, end: string) {
   return Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000))
+}
+
+function formatRemainingTime(end: string) {
+  const remainingMs = Math.max(0, new Date(end).getTime() - Date.now())
+  const totalSeconds = Math.floor(remainingMs / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} remaining`
 }
 
 function getExamGroups(exam?: Exam | null) {

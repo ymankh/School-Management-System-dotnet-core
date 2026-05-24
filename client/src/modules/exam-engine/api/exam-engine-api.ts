@@ -115,16 +115,19 @@ export async function updateExam(exam: Exam) {
   })
 }
 
-export async function addQuestionGroup(examId: number) {
+export async function addQuestionGroup(
+  examId: number,
+  payload: {
+    title: string
+    instructionsMarkdown: string
+    selectionPolicy: string
+    questionsToShow: number | null
+    shuffleQuestions: boolean
+  },
+) {
   return request(`/exams/${examId}/groups`, {
     method: "POST",
-    data: {
-      title: "New Question Group",
-      instructionsMarkdown: "",
-      selectionPolicy: "show-all",
-      questionsToShow: null,
-      shuffleQuestions: true,
-    },
+    data: payload,
   })
 }
 
