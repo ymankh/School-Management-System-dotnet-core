@@ -9,9 +9,15 @@ namespace SchoolSystemTask.Modules.Exams.Api;
 public sealed class ExamsController(ExamEngineStore store, IWebHostEnvironment environment) : ControllerBase
 {
     [HttpGet("exams")]
-    public IActionResult GetDashboard([FromQuery] string? status, [FromQuery] string? search)
+    public IActionResult GetDashboard(
+        [FromQuery] string? status,
+        [FromQuery] string? search,
+        [FromQuery] string? className,
+        [FromQuery] string? subject,
+        [FromQuery] string? date,
+        [FromQuery] string? mode)
     {
-        return Ok(store.GetDashboard(status, search));
+        return Ok(store.GetDashboard(status, search, className, subject, date, mode));
     }
 
     [HttpGet("students/me/exams")]

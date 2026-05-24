@@ -15,6 +15,15 @@ const api = axios.create({
 
 const useDemoFallback = import.meta.env.VITE_EXAM_ENGINE_DEMO === "true"
 
+export type ExamDashboardFilters = {
+  status?: string
+  search?: string
+  className?: string
+  subject?: string
+  date?: string
+  mode?: string
+}
+
 const demoExam: Exam = {
   id: 1,
   title: "Midterm: Algebra and Functions",
@@ -142,7 +151,7 @@ const demoExam: Exam = {
           type: "Article",
           bodyMarkdown:
             "Explain how the discriminant `$b^2 - 4ac$` determines the number of roots of a quadratic equation.",
-          referenceMarkdown: "Reference: a quadratic has form `$ax^2 + bx + c = 0`.",
+          referenceMarkdown: "Reference: a quadratic has form $ax^2 + bx + c = 0$.",
           mark: 10,
           authoringOrder: 1,
           isRequired: true,
@@ -295,8 +304,15 @@ function toDashboard(exam: Exam): ExamDashboard {
   }
 }
 
-export async function getExamDashboard() {
-  return request<ExamDashboard>("/exams", undefined, toDashboard(demoExam))
+export async function getExamDashboard(filters: ExamDashboardFilters = {}) {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value && value !== "all") {
+      params.set(key, value)
+    }
+  })
+  const query = params.toString()
+  return request<ExamDashboard>(`/exams${query ? `?${query}` : ""}`, undefined, toDashboard(demoExam))
 }
 
 export async function getStudentExams() {
@@ -379,6 +395,7 @@ export async function updateExam(exam: Exam) {
       focusModeEnabled: exam.focusModeEnabled,
       instructionsMarkdown: exam.instructionsMarkdown,
       studyMaterialsMarkdown: exam.studyMaterialsMarkdown,
+      groups: exam.groups,
     },
   })
 }

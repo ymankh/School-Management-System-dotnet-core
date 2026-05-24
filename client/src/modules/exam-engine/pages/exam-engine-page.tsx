@@ -1,8 +1,28 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import {
   Archive,
+  ArrowDown,
+  ArrowUp,
   BookOpen,
+  GripVertical,
   CheckCircle2,
   Clock,
   Copy,
@@ -11,6 +31,8 @@ import {
   FileUp,
   Flag,
   GraduationCap,
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
   ListChecks,
   Play,
@@ -41,6 +63,7 @@ import {
   uploadExamAttachment,
   uploadAttemptFile,
 } from "@/modules/exam-engine/api/exam-engine-api"
+import type { ExamDashboardFilters } from "@/modules/exam-engine/api/exam-engine-api"
 import { MarkdownContent } from "@/modules/exam-engine/components/markdown-content"
 import type {
   Exam,
@@ -48,6 +71,8 @@ import type {
   ExamDashboard,
   ExamQuestion,
   ExamSummary,
+  QuestionGroup,
+  QuestionType,
   QuestionBankItem,
   StudentAnswer,
 } from "@/modules/exam-engine/types/exam-engine.types"
@@ -55,6 +80,13 @@ import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
 import { Input } from "@/shared/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select"
 import { ErrorBoundary } from "@/shared/components/error-boundary"
 import { cn } from "@/shared/lib/utils"
 
@@ -70,6 +102,17 @@ const statusTone: Record<string, string> = {
   Archived: "border-zinc-200 bg-zinc-50 text-zinc-600",
 }
 
+const questionTypes: QuestionType[] = [
+  "MultipleChoice",
+  "TrueFalse",
+  "ShortAnswer",
+  "Article",
+  "FileUpload",
+  "Matching",
+  "Ordering",
+  "FillInTheBlank",
+]
+
 function ExamEnginePage() {
   const [mainView, setMainView] = useState<MainView>("teacher")
   const [teacherPanel, setTeacherPanel] = useState<TeacherPanel>("dashboard")
@@ -77,10 +120,21 @@ function ExamEnginePage() {
   const [activeExamOverride, setActiveExamOverride] = useState<Exam | null>(null)
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null)
   const [answers, setAnswers] = useState<Record<number, StudentAnswer>>({})
+  const [dashboardFilters, setDashboardFilters] = useState<Required<ExamDashboardFilters>>({
+    className: "all",
+    date: "all",
+    mode: "all",
+    search: "",
+    status: "all",
+    subject: "all",
+  })
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null)
   const queryClient = useQueryClient()
 
-  const dashboardQuery = useQuery({ queryKey: ["exam-dashboard"], queryFn: getExamDashboard })
+  const dashboardQuery = useQuery({
+    queryKey: ["exam-dashboard", dashboardFilters],
+    queryFn: () => getExamDashboard(dashboardFilters),
+  })
   const studentExamsQuery = useQuery({ queryKey: ["student-exams"], queryFn: getStudentExams })
   const questionBankQuery = useQuery({ queryKey: ["question-bank"], queryFn: getQuestionBank })
   const activeExamQuery = useQuery({ queryKey: ["exam", 1], queryFn: () => getExam(1) })
@@ -242,6 +296,12 @@ function ExamEnginePage() {
     startAttemptMutation.mutate(examId)
   }
 
+  async function handleOpenTeacherExam(examId: number, panel: TeacherPanel) {
+    const examResult = await queryClient.fetchQuery({ queryKey: ["exam", examId], queryFn: () => getExam(examId) })
+    setActiveExamOverride(examResult)
+    setTeacherPanel(panel)
+  }
+
   async function handleSaveAnswer(questionId: number, answerJson: string, flaggedForReview = false) {
     if (!attempt) {
       return
@@ -322,12 +382,15 @@ function ExamEnginePage() {
                 addGroup={(examId) => addQuestionGroupMutation.mutate(examId)}
                 archiveExam={(examId) => archiveExamMutation.mutate(examId)}
                 dashboard={dashboard}
+                dashboardFilters={dashboardFilters}
                 duplicateExam={(examId) => duplicateExamMutation.mutate(examId)}
                 importFromBank={(examId, groupId, itemIds) => importQuestionsMutation.mutate({ examId, groupId, itemIds })}
+                openExam={handleOpenTeacherExam}
                 panel={teacherPanel}
                 publishExam={(examId) => publishExamMutation.mutate(examId)}
                 publishMarks={(examId) => publishMarksMutation.mutate(examId)}
                 questionBank={questionBank}
+                setDashboardFilters={setDashboardFilters}
                 setPanel={setTeacherPanel}
                 updateExam={(exam) => updateExamMutation.mutate(exam)}
                 uploadAttachment={(examId, file) => uploadExamAttachmentMutation.mutate({ examId, file })}
@@ -412,12 +475,15 @@ function TeacherPortal({
   addGroup,
   archiveExam,
   dashboard,
+  dashboardFilters,
   duplicateExam,
   importFromBank,
+  openExam,
   panel,
   publishExam,
   publishMarks,
   questionBank,
+  setDashboardFilters,
   setPanel,
   updateExam,
   uploadAttachment,
@@ -426,12 +492,15 @@ function TeacherPortal({
   addGroup: (examId: number) => void
   archiveExam: (examId: number) => void
   dashboard: ExamDashboard | null
+  dashboardFilters: Required<ExamDashboardFilters>
   duplicateExam: (examId: number) => void
   importFromBank: (examId: number, groupId: number, itemIds: number[]) => void
+  openExam: (examId: number, panel: TeacherPanel) => void
   panel: TeacherPanel
   publishExam: (examId: number) => void
   publishMarks: (examId: number) => void
   questionBank: QuestionBankItem[]
+  setDashboardFilters: (filters: Required<ExamDashboardFilters>) => void
   setPanel: (panel: TeacherPanel) => void
   updateExam: (exam: Exam) => void
   uploadAttachment: (examId: number, file: File) => void
@@ -467,9 +536,11 @@ function TeacherPortal({
         <TeacherDashboard
           archiveExam={archiveExam}
           dashboard={dashboard}
+          filters={dashboardFilters}
           duplicateExam={duplicateExam}
-          editExam={() => setPanel("builder")}
+          openExam={openExam}
           publishExam={publishExam}
+          setFilters={setDashboardFilters}
           setPanel={setPanel}
         />
       )}
@@ -504,24 +575,35 @@ function TeacherDashboard({
   archiveExam,
   dashboard,
   duplicateExam,
-  editExam,
+  filters,
+  openExam,
   publishExam,
+  setFilters,
   setPanel,
 }: {
   archiveExam: (examId: number) => void
   dashboard: ExamDashboard | null
   duplicateExam: (examId: number) => void
-  editExam: (examId: number) => void
+  filters: Required<ExamDashboardFilters>
+  openExam: (examId: number, panel: TeacherPanel) => void
   publishExam: (examId: number) => void
+  setFilters: (filters: Required<ExamDashboardFilters>) => void
   setPanel: (panel: TeacherPanel) => void
 }) {
-  const exams = dashboard?.exams ?? []
-  const [search, setSearch] = useState("")
-  const [status, setStatus] = useState<string>("all")
+  const exams = useMemo(() => dashboard?.exams ?? [], [dashboard])
+  const classOptions = useMemo(() => uniqueSorted(exams.map((exam) => exam.className)), [exams])
+  const subjectOptions = useMemo(() => uniqueSorted(exams.map((exam) => exam.subject)), [exams])
+  const updateFilter = (key: keyof Required<ExamDashboardFilters>, value: string) => {
+    setFilters({ ...filters, [key]: value })
+  }
   const filteredExams = exams.filter((exam) => {
-    const matchesSearch = `${exam.title} ${exam.subject} ${exam.className}`.toLowerCase().includes(search.toLowerCase())
-    const matchesStatus = status === "all" || exam.status === status
-    return matchesSearch && matchesStatus
+    const matchesSearch = `${exam.title} ${exam.subject} ${exam.className} ${exam.teacherName}`.toLowerCase().includes(filters.search.toLowerCase())
+    const matchesStatus = filters.status === "all" || exam.status === filters.status
+    const matchesClass = filters.className === "all" || exam.className === filters.className
+    const matchesSubject = filters.subject === "all" || exam.subject === filters.subject
+    const matchesMode = filters.mode === "all" || exam.mode === filters.mode
+    const matchesDate = matchesDashboardDateFilter(exam, filters.date)
+    return matchesSearch && matchesStatus && matchesClass && matchesSubject && matchesMode && matchesDate
   })
 
   return (
@@ -540,16 +622,65 @@ function TeacherDashboard({
             <div className="flex flex-wrap gap-2">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2 size-4 text-muted-foreground" />
-                <Input className="w-64 pl-8" placeholder="Search exams..." value={search} onChange={(event) => setSearch(event.target.value)} />
+                <Input className="w-64 pl-8" placeholder="Search exams..." value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} />
               </div>
-              <select className="h-8 rounded-md border bg-background px-2 text-sm" value={status} onChange={(event) => setStatus(event.target.value)}>
-                <option value="all">All statuses</option>
-                <option value="Draft">Draft</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Active">Active</option>
-                <option value="Completed">Completed</option>
-                <option value="Archived">Archived</option>
-              </select>
+              <Select value={filters.status} onValueChange={(value) => updateFilter("status", value)}>
+                <SelectTrigger className="w-36" size="default">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="Scheduled">Scheduled</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filters.className} onValueChange={(value) => updateFilter("className", value)}>
+                <SelectTrigger className="w-44" size="default">
+                  <SelectValue placeholder="All classes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All classes</SelectItem>
+                  {classOptions.map((className) => (
+                    <SelectItem key={className} value={className}>{className}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filters.subject} onValueChange={(value) => updateFilter("subject", value)}>
+                <SelectTrigger className="w-40" size="default">
+                  <SelectValue placeholder="All subjects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All subjects</SelectItem>
+                  {subjectOptions.map((subject) => (
+                    <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filters.date} onValueChange={(value) => updateFilter("date", value)}>
+                <SelectTrigger className="w-36" size="default">
+                  <SelectValue placeholder="All dates" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All dates</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="upcoming">Upcoming</SelectItem>
+                  <SelectItem value="past">Past</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filters.mode} onValueChange={(value) => updateFilter("mode", value)}>
+                <SelectTrigger className="w-36" size="default">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="Online">Online</SelectItem>
+                  <SelectItem value="Paper">Paper</SelectItem>
+                  <SelectItem value="Mixed">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
               <Button size="sm" onClick={() => setPanel("builder")}><Plus className="size-4" /> New Exam</Button>
             </div>
           </div>
@@ -561,6 +692,7 @@ function TeacherDashboard({
                 <tr>
                   <th className="px-4 py-3 font-medium">Exam Name</th>
                   <th className="px-4 py-3 font-medium">Subject</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Questions</th>
                   <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -574,16 +706,17 @@ function TeacherDashboard({
                       <div className="text-xs text-muted-foreground">{exam.className} • {formatDate(exam.startAtUtc)}</div>
                     </td>
                     <td className="px-4 py-3">{exam.subject}</td>
+                    <td className="px-4 py-3">{exam.mode}</td>
                     <td className="px-4 py-3"><StatusBadge status={exam.status} /></td>
                     <td className="px-4 py-3">{exam.questionCount}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
-                        <IconButton title="Preview" icon={Eye} onClick={() => editExam(exam.id)} />
-                        <IconButton title="Edit" icon={Settings} onClick={() => editExam(exam.id)} />
+                        <IconButton title="Preview" icon={Eye} onClick={() => openExam(exam.id, "builder")} />
+                        <IconButton title="Edit" icon={Settings} onClick={() => openExam(exam.id, "builder")} />
                         <IconButton title="Publish" icon={CheckCircle2} onClick={() => publishExam(exam.id)} />
                         <IconButton title="Duplicate" icon={Copy} onClick={() => duplicateExam(exam.id)} />
                         <IconButton title="Archive" icon={Archive} onClick={() => archiveExam(exam.id)} />
-                        <IconButton title="Results" icon={ListChecks} onClick={() => setPanel("grading")} />
+                        <IconButton title="Results" icon={ListChecks} onClick={() => openExam(exam.id, "grading")} />
                       </div>
                     </td>
                   </tr>
@@ -615,9 +748,61 @@ function ExamBuilder({
   uploadAttachment: (examId: number, file: File) => void
 }) {
   const groups = getExamGroups(exam)
-  const firstQuestion = getGroupQuestions(groups[0])[0]
+  const [editableGroups, setEditableGroups] = useState<QuestionGroup[]>(groups)
   const [selectedBankItems, setSelectedBankItems] = useState<number[]>([])
   const [attachment, setAttachment] = useState<File | null>(null)
+
+  useEffect(() => {
+    setEditableGroups(groups)
+  }, [exam.id, groups])
+
+  const addQuestionDraft = (groupId: number) => {
+    setEditableGroups((currentGroups) =>
+      currentGroups.map((group) => {
+        if (group.id !== groupId) {
+          return group
+        }
+
+        const questions = getGroupQuestions(group)
+        const question: ExamQuestion = {
+          id: -Date.now(),
+          groupId,
+          type: "ShortAnswer",
+          bodyMarkdown: "New question",
+          referenceMarkdown: "",
+          mark: 1,
+          authoringOrder: questions.length + 1,
+          isRequired: true,
+          difficulty: "Medium",
+          tags: [],
+          gradingRule: "manual",
+          shuffleOptions: false,
+          options: [],
+          matchPairs: [],
+          orderingItems: [],
+          acceptedAnswers: [],
+          fileUploadRule: null,
+        }
+
+        return { ...group, questions: [...questions, question] }
+      }),
+    )
+  }
+
+  const updateQuestionDraft = (groupId: number, questionId: number, patch: Partial<ExamQuestion>) => {
+    setEditableGroups((currentGroups) =>
+      currentGroups.map((group) =>
+        group.id === groupId
+          ? {
+              ...group,
+              questions: getGroupQuestions(group).map((question) =>
+                question.id === questionId ? { ...question, ...patch } : question,
+              ),
+            }
+          : group,
+      ),
+    )
+  }
 
   return (
     <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
@@ -626,7 +811,7 @@ function ExamBuilder({
           <CardTitle>Groups</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {groups.map((group) => (
+          {editableGroups.map((group) => (
             <div key={group.id} className="rounded-md border bg-muted/30 p-3">
               <div className="flex items-center justify-between">
                 <div className="font-medium">{group.title}</div>
@@ -661,30 +846,110 @@ function ExamBuilder({
         <CardContent className="space-y-5">
           <section className="rounded-md border p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-medium">Markdown and LaTeX Editor</h3>
-              <Button variant="outline" size="sm" onClick={() => updateExam(exam)}><Save className="size-4" /> Save Draft</Button>
+              <div>
+                <h3 className="font-medium">Questions</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Edit every question for the exam from this page.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => updateExam({ ...exam, groups: editableGroups })}><Save className="size-4" /> Save Draft</Button>
             </div>
-            <textarea
-              className="min-h-32 w-full rounded-md border bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30"
-              defaultValue={`${firstQuestion?.bodyMarkdown ?? ""}\n\nBlock math example:\n$$\nx = {-b \\pm \\sqrt{b^2-4ac} \\over 2a}\n$$`}
-            />
-          </section>
 
-          <section className="rounded-md border p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="font-medium">Live Student Preview</h3>
-              <Badge variant="secondary">KaTeX enabled</Badge>
+            <div className="space-y-5">
+              {editableGroups.map((group) => (
+                <div key={group.id} className="rounded-md border bg-muted/20 p-3">
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h4 className="font-medium">{group.title}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {group.selectionPolicy === "pick-random" ? `Pick ${group.questionsToShow}` : "Show all"} • {getGroupQuestions(group).length} questions
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => addQuestionDraft(group.id)}>
+                      <Plus className="size-4" /> Add Question
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {getGroupQuestions(group).map((question) => (
+                      <div key={question.id} className="rounded-md border bg-card p-4">
+                        <div className="mb-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_120px]">
+                          <div>
+                            <div className="text-sm font-medium">Question {question.authoringOrder}</div>
+                            <div className="text-xs text-muted-foreground">{question.difficulty} • {question.isRequired ? "Required" : "Optional"}</div>
+                          </div>
+                          <Select
+                            value={question.type}
+                            onValueChange={(value) =>
+                              updateQuestionDraft(group.id, question.id, { type: value as QuestionType })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {questionTypes.map((type) => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            min={0}
+                            step={0.5}
+                            type="number"
+                            value={question.mark}
+                            onChange={(event) =>
+                              updateQuestionDraft(group.id, question.id, { mark: Number(event.target.value) })
+                            }
+                          />
+                        </div>
+
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <div>
+                            <div className="mb-2 text-sm font-medium">Markdown and LaTeX Editor</div>
+                            <textarea
+                              className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30"
+                              value={question.bodyMarkdown}
+                              onChange={(event) =>
+                                updateQuestionDraft(group.id, question.id, { bodyMarkdown: event.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-medium">Live Student Preview</span>
+                              <Badge variant="secondary">KaTeX enabled</Badge>
+                            </div>
+                            <div className="min-h-40 rounded-md border bg-background p-3">
+                              <MarkdownContent content={question.bodyMarkdown} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {getGroupQuestions(group).length === 0 && (
+                      <div className="rounded-md border border-dashed bg-background p-6 text-center text-sm text-muted-foreground">
+                        This group has no questions yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {editableGroups.length === 0 && (
+                <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Add a group before adding questions.
+                </div>
+              )}
             </div>
-            <MarkdownContent content={`${firstQuestion?.bodyMarkdown ?? ""}\n\n$$\nx = {-b \\pm \\sqrt{b^2-4ac} \\over 2a}\n$$`} />
           </section>
 
           <section className="rounded-md border p-4">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-medium">Add From Question Bank</h3>
               <Button
-                disabled={selectedBankItems.length === 0 || !groups[0]}
+                disabled={selectedBankItems.length === 0 || !editableGroups[0]}
                 size="sm"
-                onClick={() => groups[0] && importFromBank(exam.id, groups[0].id, selectedBankItems)}
+                onClick={() => editableGroups[0] && importFromBank(exam.id, editableGroups[0].id, selectedBankItems)}
               >
                 <Database className="size-4" /> Add Selected ({selectedBankItems.length})
               </Button>
@@ -1024,6 +1289,14 @@ function ExamPlayer({
   const answer = answers[selectedQuestion.id]
   const locked = attempt ? attempt.status !== "InProgress" : false
   const deliveredOptionOrder = attempt?.questions.find((question) => question.questionId === selectedQuestion.id)?.deliveredOptionOrder ?? []
+  const selectedQuestionIndex = Math.max(
+    questions.findIndex((question) => question.id === selectedQuestion.id),
+    0,
+  )
+  const previousQuestion = questions[selectedQuestionIndex - 1]
+  const nextQuestion = questions[selectedQuestionIndex + 1]
+  const questionPosition = questions.length > 0 ? selectedQuestionIndex + 1 : 0
+  const showManualSave = ["Article", "ShortAnswer", "FillInTheBlank"].includes(selectedQuestion.type)
 
   return (
     <div className="space-y-4">
@@ -1078,10 +1351,38 @@ function ExamPlayer({
 
             <div className="flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
               <span>Autosave: {answer ? `saved ${formatTime(answer.savedAtUtc)}` : "not saved yet"}</span>
-              <Button disabled={locked} size="sm" onClick={() => void onSaveAnswer(selectedQuestion.id, JSON.stringify({ value: textAnswer }), answer?.flaggedForReview)}>
-                <Save className="size-4" />
-                Save Answer
+              {showManualSave && (
+                <Button disabled={locked} size="sm" onClick={() => void onSaveAnswer(selectedQuestion.id, JSON.stringify({ value: textAnswer }), answer?.flaggedForReview)}>
+                  <Save className="size-4" />
+                  Save Answer
+                </Button>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                disabled={!previousQuestion}
+                type="button"
+                variant="outline"
+                onClick={() => previousQuestion && onSelectQuestion(previousQuestion.id)}
+              >
+                <ChevronLeft className="size-4" />
+                Back
               </Button>
+              <span className="text-center text-xs font-medium text-muted-foreground">
+                Question {questionPosition} of {questions.length}
+              </span>
+              {nextQuestion ? (
+                <Button type="button" onClick={() => onSelectQuestion(nextQuestion.id)}>
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              ) : (
+                <Button type="button" onClick={onShowReview}>
+                  Review
+                  <ListChecks className="size-4" />
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1111,10 +1412,21 @@ function QuestionAnswerInput({
   question: ExamQuestion
   textAnswer: string
 }) {
-  const [uploadState, setUploadState] = useState<"empty" | "uploading" | "uploaded" | "failed" | "removed">("empty")
-  const [matchingAnswers, setMatchingAnswers] = useState<Record<number, string>>({})
-  const [orderingAnswer, setOrderingAnswer] = useState<string[]>(getOrderingItems(question))
   const parsedAnswer = parseAnswer(answer?.answerJson)
+  const [uploadState, setUploadState] = useState<"empty" | "uploading" | "uploaded" | "failed" | "removed">("empty")
+  const [matchingAnswers, setMatchingAnswers] = useState<Record<number, string>>(() => parsedAnswer?.pairs ?? {})
+  const [orderingAnswer, setOrderingAnswer] = useState<string[]>(() => getOrderingAnswer(question, parsedAnswer))
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  useEffect(() => {
+    setMatchingAnswers(parsedAnswer?.pairs ?? {})
+    setOrderingAnswer(getOrderingAnswer(question, parsedAnswer))
+  }, [question.id, answer?.answerJson])
 
   if (question.type === "MultipleChoice") {
     const orderedOptions = optionOrder.length > 0
@@ -1125,18 +1437,33 @@ function QuestionAnswerInput({
 
     return (
       <div className="space-y-2">
-        {orderedOptions.map((option) => (
-          <button
-            key={option.id}
-            className="flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm transition hover:bg-muted"
-            disabled={locked}
-            type="button"
-            onClick={() => void onSaveAnswer(question.id, JSON.stringify({ selectedOptionId: option.id }), answer?.flaggedForReview)}
-          >
-            <span className="size-3 rounded-full border" />
-            <MarkdownContent content={option.textMarkdown} />
-          </button>
-        ))}
+        {orderedOptions.map((option) => {
+          const selected = parsedAnswer?.selectedOptionId === option.id
+
+          return (
+            <button
+              key={option.id}
+              aria-pressed={selected}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm transition hover:bg-muted",
+                selected && "border-primary bg-primary/10 ring-2 ring-ring ring-offset-2 ring-offset-background",
+              )}
+              disabled={locked}
+              type="button"
+              onClick={() => void onSaveAnswer(question.id, JSON.stringify({ selectedOptionId: option.id }), answer?.flaggedForReview)}
+            >
+              <span
+                className={cn(
+                  "flex size-4 shrink-0 items-center justify-center rounded-full border",
+                  selected && "border-primary bg-primary text-primary-foreground",
+                )}
+              >
+                {selected && <CheckCircle2 className="size-3" />}
+              </span>
+              <MarkdownContent content={option.textMarkdown} />
+            </button>
+          )
+        })}
       </div>
     )
   }
@@ -1144,11 +1471,26 @@ function QuestionAnswerInput({
   if (question.type === "TrueFalse") {
     return (
       <div className="flex gap-2">
-        {[true, false].map((value) => (
-          <Button key={String(value)} disabled={locked} variant="outline" onClick={() => void onSaveAnswer(question.id, JSON.stringify({ value }), answer?.flaggedForReview)}>
-            {String(value)}
-          </Button>
-        ))}
+        {[true, false].map((value) => {
+          const selected = parsedAnswer?.value === value
+
+          return (
+            <Button
+              key={String(value)}
+              aria-pressed={selected}
+              className={cn(
+                "min-w-24 justify-center",
+                selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
+              )}
+              disabled={locked}
+              variant={selected ? "default" : "outline"}
+              onClick={() => void onSaveAnswer(question.id, JSON.stringify({ value }), answer?.flaggedForReview)}
+            >
+              {selected && <CheckCircle2 className="size-4" />}
+              {value ? "True" : "False"}
+            </Button>
+          )
+        })}
       </div>
     )
   }
@@ -1221,23 +1563,26 @@ function QuestionAnswerInput({
         {matchPairs.map((pair) => (
           <div key={pair.id} className="grid gap-3 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <MarkdownContent content={pair.leftMarkdown} />
-            <select
-              className="h-9 rounded-md border bg-background px-2 text-sm"
+            <Select
               disabled={locked}
               value={matchingAnswers[pair.id] ?? ""}
-              onChange={(event) => {
-                const next = { ...matchingAnswers, [pair.id]: event.target.value }
+              onValueChange={(value) => {
+                const next = { ...matchingAnswers, [pair.id]: value }
                 setMatchingAnswers(next)
                 void onSaveAnswer(question.id, JSON.stringify({ pairs: next }), answer?.flaggedForReview)
               }}
             >
-              <option value="">Choose match...</option>
-              {rightValues.map((value) => (
-                <option key={`${pair.id}-${value}`} value={value}>
-                  {value.replaceAll("`", "")}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="Choose match..." />
+              </SelectTrigger>
+              <SelectContent>
+                {rightValues.map((value) => (
+                  <SelectItem key={`${pair.id}-${value}`} value={value}>
+                    {value.replaceAll("`", "")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         ))}
       </div>
@@ -1245,31 +1590,57 @@ function QuestionAnswerInput({
   }
 
   if (question.type === "Ordering") {
-    function moveItem(index: number, direction: -1 | 1) {
-      const next = [...orderingAnswer]
-      const target = index + direction
-      if (target < 0 || target >= next.length) {
-        return
-      }
-
-      const [item] = next.splice(index, 1)
-      next.splice(target, 0, item)
+    function saveOrderingAnswer(next: string[]) {
       setOrderingAnswer(next)
       void onSaveAnswer(question.id, JSON.stringify({ items: next }), answer?.flaggedForReview)
     }
 
+    function handleOrderingDragEnd(event: DragEndEvent) {
+      const { active, over } = event
+      if (!over || active.id === over.id) {
+        return
+      }
+
+      const oldIndex = orderingAnswer.indexOf(String(active.id))
+      const newIndex = orderingAnswer.indexOf(String(over.id))
+      if (oldIndex < 0 || newIndex < 0) {
+        return
+      }
+
+      const next = arrayMove(orderingAnswer, oldIndex, newIndex)
+      saveOrderingAnswer(next)
+    }
+
+    function moveOrderingItem(index: number, direction: -1 | 1) {
+      const targetIndex = index + direction
+      if (targetIndex < 0 || targetIndex >= orderingAnswer.length) {
+        return
+      }
+
+      saveOrderingAnswer(arrayMove(orderingAnswer, index, targetIndex))
+    }
+
     return (
-      <div className="space-y-2">
-        {orderingAnswer.map((item, index) => (
-          <div key={item} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
-            <span><span className="mr-2 font-mono text-xs text-muted-foreground">{index + 1}</span>{item}</span>
-            <span className="flex gap-1">
-              <Button disabled={locked || index === 0} size="sm" variant="outline" onClick={() => moveItem(index, -1)}>Up</Button>
-              <Button disabled={locked || index === orderingAnswer.length - 1} size="sm" variant="outline" onClick={() => moveItem(index, 1)}>Down</Button>
-            </span>
+      <DndContext
+        collisionDetection={closestCenter}
+        sensors={sensors}
+        onDragEnd={handleOrderingDragEnd}
+      >
+        <SortableContext items={orderingAnswer} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {orderingAnswer.map((item, index) => (
+              <SortableOrderingItem
+                key={item}
+                disabled={locked}
+                index={index}
+                item={item}
+                itemCount={orderingAnswer.length}
+                onMove={moveOrderingItem}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </SortableContext>
+      </DndContext>
     )
   }
 
@@ -1313,21 +1684,21 @@ function QuestionMap({
 
   return (
     <Card className="xl:sticky xl:top-20 xl:self-start">
-      <CardHeader>
-        <CardTitle>Question Map</CardTitle>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Question Map</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="mb-4 grid grid-cols-3 gap-2 text-center text-xs">
-          <div className="rounded border p-2"><div className="font-semibold">{answered}</div><div className="text-muted-foreground">Answered</div></div>
-          <div className="rounded border p-2"><div className="font-semibold">{flagged}</div><div className="text-muted-foreground">Flagged</div></div>
-          <div className="rounded border p-2"><div className="font-semibold">{questions.length - answered}</div><div className="text-muted-foreground">Open</div></div>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="rounded-md border px-2 py-1.5"><div className="font-semibold leading-none">{answered}</div><div className="mt-1 text-muted-foreground">Answered</div></div>
+          <div className="rounded-md border px-2 py-1.5"><div className="font-semibold leading-none">{flagged}</div><div className="mt-1 text-muted-foreground">Flagged</div></div>
+          <div className="rounded-md border px-2 py-1.5"><div className="font-semibold leading-none">{questions.length - answered}</div><div className="mt-1 text-muted-foreground">Open</div></div>
         </div>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="flex flex-wrap gap-2">
           {questions.map((question, index) => (
             <button
               key={question.id}
               className={cn(
-                "flex aspect-square items-center justify-center rounded-md border text-sm",
+                "flex size-10 shrink-0 items-center justify-center rounded-md border text-sm font-medium transition hover:bg-muted sm:size-11 xl:size-10",
                 answers[question.id] && "bg-primary text-primary-foreground",
                 answers[question.id]?.flaggedForReview && "bg-amber-100 text-amber-900",
                 selectedQuestionId === question.id && "ring-2 ring-ring",
@@ -1341,6 +1712,85 @@ function QuestionMap({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function SortableOrderingItem({
+  disabled,
+  index,
+  item,
+  itemCount,
+  onMove,
+}: {
+  disabled: boolean
+  index: number
+  item: string
+  itemCount: number
+  onMove: (index: number, direction: -1 | 1) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item, disabled })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn("grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-3", isDragging && "relative z-10 opacity-80")}
+      style={style}
+    >
+      <span className="flex size-8 items-center justify-center rounded-full bg-muted font-mono text-xs font-medium text-muted-foreground">
+        {index + 1}
+      </span>
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-md border bg-card p-3 text-sm shadow-sm",
+          isDragging && "ring-2 ring-ring",
+        )}
+      >
+        <button
+          aria-label={`Drag to reorder ${item}`}
+          className="flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md border text-muted-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled}
+          type="button"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <span className="min-w-0 flex-1">{item}</span>
+        <div className="flex shrink-0 gap-1">
+          <Button
+            aria-label={`Move ${item} up`}
+            disabled={disabled || index === 0}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={() => onMove(index, -1)}
+          >
+            <ArrowUp className="size-4" />
+          </Button>
+          <Button
+            aria-label={`Move ${item} down`}
+            disabled={disabled || index === itemCount - 1}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={() => onMove(index, 1)}
+          >
+            <ArrowDown className="size-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1500,6 +1950,38 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
 }
 
+function matchesDashboardDateFilter(exam: ExamSummary, filter: string) {
+  if (filter === "all") {
+    return true
+  }
+
+  const today = utcDateKey(new Date().toISOString())
+  const start = utcDateKey(exam.startAtUtc)
+  const end = utcDateKey(exam.endAtUtc)
+
+  if (filter === "today") {
+    return start === today
+  }
+
+  if (filter === "upcoming") {
+    return start > today
+  }
+
+  if (filter === "past") {
+    return end < today
+  }
+
+  return true
+}
+
+function uniqueSorted(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean))).sort((left, right) => left.localeCompare(right))
+}
+
+function utcDateKey(value: string) {
+  return new Date(value).toISOString().slice(0, 10)
+}
+
 function formatTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(value))
 }
@@ -1536,13 +2018,26 @@ function getOrderingItems(question: ExamQuestion) {
   return Array.isArray(question.orderingItems) ? question.orderingItems : []
 }
 
+function getOrderingAnswer(question: ExamQuestion, answer: ParsedAnswer | null) {
+  return Array.isArray(answer?.items) && answer.items.length > 0 ? answer.items : getOrderingItems(question)
+}
+
+type ParsedAnswer = {
+  fileName?: string
+  items?: string[]
+  pairs?: Record<number, string>
+  selectedOptionId?: number
+  state?: string
+  value?: boolean | string
+}
+
 function parseAnswer(answerJson?: string) {
   if (!answerJson) {
     return null
   }
 
   try {
-    return JSON.parse(answerJson) as { fileName?: string; state?: string }
+    return JSON.parse(answerJson) as ParsedAnswer
   } catch {
     return null
   }

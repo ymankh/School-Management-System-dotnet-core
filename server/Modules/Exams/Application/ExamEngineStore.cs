@@ -17,7 +17,13 @@ public sealed class ExamEngineStore
         Seed();
     }
 
-    public ExamDashboardDto GetDashboard(string? status = null, string? search = null)
+    public ExamDashboardDto GetDashboard(
+        string? status = null,
+        string? search = null,
+        string? className = null,
+        string? subject = null,
+        string? date = null,
+        string? mode = null)
     {
         lock (_gate)
         {
@@ -33,8 +39,26 @@ public sealed class ExamEngineStore
                 exams = exams.Where(exam =>
                     exam.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     exam.Subject.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    exam.ClassName.Contains(search, StringComparison.OrdinalIgnoreCase));
+                    exam.ClassName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    exam.TeacherName.Contains(search, StringComparison.OrdinalIgnoreCase));
             }
+
+            if (!string.IsNullOrWhiteSpace(className))
+            {
+                exams = exams.Where(exam => exam.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(subject))
+            {
+                exams = exams.Where(exam => exam.Subject.Equals(subject, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(mode) && Enum.TryParse<ExamMode>(mode, true, out var parsedMode))
+            {
+                exams = exams.Where(exam => exam.Mode == parsedMode);
+            }
+
+            exams = ApplyDateFilter(exams, date);
 
             var summaries = exams
                 .OrderByDescending(exam => exam.StartAtUtc)
@@ -121,6 +145,12 @@ public sealed class ExamEngineStore
             exam.FocusModeEnabled = request.FocusModeEnabled;
             exam.InstructionsMarkdown = request.InstructionsMarkdown;
             exam.StudyMaterialsMarkdown = request.StudyMaterialsMarkdown;
+            if (request.Groups is not null)
+            {
+                exam.Groups = request.Groups
+                    .Select((group, index) => NormalizeGroupForExam(id, group, index + 1))
+                    .ToList();
+            }
 
             return exam;
         }
@@ -649,6 +679,64 @@ public sealed class ExamEngineStore
         };
     }
 
+    private QuestionGroup NormalizeGroupForExam(int examId, QuestionGroup source, int order)
+    {
+        var group = CloneGroup(source);
+        group.Id = group.Id <= 0 ? NextId() : group.Id;
+        group.ExamId = examId;
+        group.AuthoringOrder = order;
+        group.Questions = group.Questions
+            .Select((question, index) => NormalizeQuestionForGroup(group.Id, question, index + 1))
+            .ToList();
+        return group;
+    }
+
+    private ExamQuestion NormalizeQuestionForGroup(int groupId, ExamQuestion source, int order)
+    {
+        var question = CloneQuestionDraft(source);
+        question.Id = question.Id <= 0 ? NextId() : question.Id;
+        question.GroupId = groupId;
+        question.AuthoringOrder = order;
+        question.Options = question.Options
+            .Select((option, index) => new QuestionOption
+            {
+                Id = option.Id <= 0 ? NextId() : option.Id,
+                TextMarkdown = option.TextMarkdown,
+                IsCorrect = option.IsCorrect,
+                AuthoringOrder = option.AuthoringOrder <= 0 ? index + 1 : option.AuthoringOrder
+            })
+            .ToList();
+        question.MatchPairs = question.MatchPairs
+            .Select((pair, index) => new QuestionMatchPair
+            {
+                Id = pair.Id <= 0 ? NextId() : pair.Id,
+                LeftMarkdown = pair.LeftMarkdown,
+                RightMarkdown = pair.RightMarkdown,
+                AuthoringOrder = pair.AuthoringOrder <= 0 ? index + 1 : pair.AuthoringOrder
+            })
+            .ToList();
+        return question;
+    }
+
+    private static IEnumerable<Exam> ApplyDateFilter(IEnumerable<Exam> exams, string? date)
+    {
+        if (string.IsNullOrWhiteSpace(date) || date.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            return exams;
+        }
+
+        var today = DateTime.UtcNow.Date;
+        return date.ToLowerInvariant() switch
+        {
+            "today" => exams.Where(exam => exam.StartAtUtc.Date == today),
+            "upcoming" => exams.Where(exam => exam.StartAtUtc.Date > today),
+            "past" => exams.Where(exam => exam.EndAtUtc.Date < today),
+            _ => DateTime.TryParse(date, out var parsed)
+                ? exams.Where(exam => exam.StartAtUtc.Date == parsed.Date)
+                : exams
+        };
+    }
+
     private List<ExamQuestion> BuildDeliveredQuestions(Exam exam)
     {
         var groups = exam.Groups.AsEnumerable();
@@ -779,6 +867,18 @@ public sealed class ExamEngineStore
     {
         var json = JsonSerializer.Serialize(source);
         return JsonSerializer.Deserialize<Exam>(json) ?? throw new InvalidOperationException("Could not clone exam.");
+    }
+
+    private QuestionGroup CloneGroup(QuestionGroup source)
+    {
+        var json = JsonSerializer.Serialize(source);
+        return JsonSerializer.Deserialize<QuestionGroup>(json) ?? throw new InvalidOperationException("Could not clone question group.");
+    }
+
+    private ExamQuestion CloneQuestionDraft(ExamQuestion source)
+    {
+        var json = JsonSerializer.Serialize(source);
+        return JsonSerializer.Deserialize<ExamQuestion>(json) ?? throw new InvalidOperationException("Could not clone question.");
     }
 
     private ExamQuestion CloneQuestion(ExamQuestion source, int groupId, int order)
@@ -913,7 +1013,7 @@ public sealed class ExamEngineStore
             GroupId = extendedGroup.Id,
             Type = QuestionType.Article,
             BodyMarkdown = "Explain how the discriminant `$b^2 - 4ac$` determines the number of roots of a quadratic equation.",
-            ReferenceMarkdown = "Reference: a quadratic has form `$ax^2 + bx + c = 0`.",
+            ReferenceMarkdown = "Reference: a quadratic has form $ax^2 + bx + c = 0$.",
             Mark = 10,
             AuthoringOrder = 1,
             Difficulty = "Medium",

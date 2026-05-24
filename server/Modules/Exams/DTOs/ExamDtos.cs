@@ -49,7 +49,8 @@ public sealed record UpdateExamRequest(
     bool ShuffleGroups,
     bool FocusModeEnabled,
     string InstructionsMarkdown,
-    string StudyMaterialsMarkdown);
+    string StudyMaterialsMarkdown,
+    IReadOnlyList<QuestionGroup>? Groups = null);
 
 public sealed record CreateQuestionGroupRequest(
     string Title,
