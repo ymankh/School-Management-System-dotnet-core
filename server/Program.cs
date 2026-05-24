@@ -1,4 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using SchoolSystemTask.Data;
 using SchoolSystemTask.Modules.Exams.Application;
 using System.Text.Json.Serialization;
@@ -19,6 +23,8 @@ public class Program
                 policy.WithOrigins(
                         "http://localhost:5173",
                         "https://localhost:5173",
+                        "http://localhost:5174",
+                        "https://localhost:5174",
                         "http://localhost:4173",
                         "https://localhost:4173")
                     .AllowAnyHeader()
@@ -29,6 +35,43 @@ public class Program
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+        builder.Services.AddHealthChecks();
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource.AddService(
+                serviceName: builder.Environment.ApplicationName,
+                serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString()))
+            .WithMetrics(metrics =>
+            {
+                metrics.AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddRuntimeInstrumentation();
+
+                if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+                {
+                    metrics.AddOtlpExporter();
+                }
+            })
+            .WithTracing(tracing =>
+            {
+                tracing.AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation();
+
+                if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+                {
+                    tracing.AddOtlpExporter();
+                }
+            });
+
+        builder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+
+            if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+            {
+                logging.AddOtlpExporter();
+            }
+        });
         builder.Services.AddControllers().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -69,6 +112,7 @@ public class Program
         app.UseCors("ReactClient");
 
         app.MapControllers();
+        app.MapHealthChecks("/health");
         app.MapFallback(async context =>
         {
             if (context.Request.Path.StartsWithSegments("/api"))

@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/SchoolSystemTask.Tests/SchoolSystemTask.Tests.csproj" />
+  </Folder>
+  <Project Path="SchoolSystemTask.AppHost/SchoolSystemTask.AppHost.csproj" />
+  <Project Path="server/SchoolSystemTask.csproj" />
+</Solution>

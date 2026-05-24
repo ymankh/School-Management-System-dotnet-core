@@ -426,3 +426,14 @@ export async function archiveExam(examId: number) {
 export async function publishMarks(examId: number) {
   return request<Exam>(`/exams/${examId}/publish-marks`, { method: "POST" })
 }
+
+export async function getGradingAnswers(examId: number) {
+  return request<StudentAnswer[]>(`/exams/${examId}/grading`)
+}
+
+export async function gradeAnswer(answerId: number, awardedMark: number, teacherFeedback: string) {
+  return request<StudentAnswer>(`/answers/${answerId}/grade`, {
+    method: "PUT",
+    data: { awardedMark, teacherFeedback },
+  })
+}

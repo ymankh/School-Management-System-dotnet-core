@@ -3,11 +3,24 @@
 This project is now split into two clear parts:
 
 - `client/`: React + Vite frontend.
-- root .NET project: ASP.NET Core 10 Web API backend.
+- `server/`: ASP.NET Core 10 Web API backend.
 
 The old MVC/Razor and EF-backed data layer have been removed. The remaining backend is a minimal ASP.NET Core API host for the React client.
 
 ## Run Locally
+
+Start the full Aspire app host:
+
+```bash
+aspire run
+```
+
+The Aspire-hosted development URLs are:
+
+```text
+API: http://localhost:5243
+Client: http://localhost:5174
+```
 
 Start the API:
 

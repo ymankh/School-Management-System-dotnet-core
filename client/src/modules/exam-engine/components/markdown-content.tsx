@@ -13,17 +13,56 @@ type MarkdownContentProps = {
 
 const mathSchema = {
   ...defaultSchema,
+  tagNames: [
+    ...(defaultSchema.tagNames ?? []),
+    "annotation",
+    "math",
+    "mfrac",
+    "mi",
+    "mn",
+    "mo",
+    "mrow",
+    "msqrt",
+    "msup",
+    "munder",
+    "semantics",
+  ],
   attributes: {
     ...defaultSchema.attributes,
-    code: [
-      ...(defaultSchema.attributes?.code ?? []),
-      ["className", "language-math", "math-inline", "math-display"],
-    ],
+    annotation: ["encoding"],
+    div: [...(defaultSchema.attributes?.div ?? []), ["className", /^math-display$/, /^katex-display$/]],
+    math: [["xmlns", "http://www.w3.org/1998/Math/MathML"]],
     span: [
       ...(defaultSchema.attributes?.span ?? []),
-      ["className", "katex", "katex-mathml", "katex-html"],
+      [
+        "className",
+        /^base$/,
+        /^delimsizing$/,
+        /^frac-line$/,
+        /^katex$/,
+        /^katex-html$/,
+        /^katex-mathml$/,
+        /^mclose$/,
+        /^mopen$/,
+        /^mord$/,
+        /^mrel$/,
+        /^mspace$/,
+        /^mfrac$/,
+        /^mtight$/,
+        /^nulldelimiter$/,
+        /^pstrut$/,
+        /^reset-size\d+$/,
+        /^sizing$/,
+        /^size\d+$/,
+        /^sqrt$/,
+        /^sqrt-line$/,
+        /^strut$/,
+        /^vlist$/,
+        /^vlist-r$/,
+        /^vlist-s$/,
+        /^vlist-t$/,
+      ],
       "aria-hidden",
-      "style",
     ],
   },
 }
@@ -36,7 +75,7 @@ function MarkdownContent({ content, className }: MarkdownContentProps) {
         className,
       )}
     >
-      <Markdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeSanitize, mathSchema], rehypeKatex]}>
+      <Markdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, [rehypeSanitize, mathSchema]]}>
         {content}
       </Markdown>
     </div>

@@ -25,10 +25,12 @@ import {
   addQuestionGroup,
   archiveExam,
   duplicateExam,
+  getGradingAnswers,
   getExam,
   getExamDashboard,
   getQuestionBank,
   getStudentExams,
+  gradeAnswer,
   publishExam,
   publishMarks,
   importQuestionsFromBank,
@@ -53,6 +55,7 @@ import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
 import { Input } from "@/shared/components/ui/input"
+import { ErrorBoundary } from "@/shared/components/error-boundary"
 import { cn } from "@/shared/lib/utils"
 
 type MainView = "teacher" | "student"
@@ -218,13 +221,13 @@ function ExamEnginePage() {
     ?? publishMarksMutation.error
 
   const questions = useMemo(() => {
-    const authoredQuestions = activeExam?.groups.flatMap((group) => group.questions) ?? []
+    const authoredQuestions = getExamQuestions(activeExam)
     if (!attempt) {
       return authoredQuestions
     }
 
     const byId = new Map(authoredQuestions.map((question) => [question.id, question]))
-    return attempt.questions
+    return getAttemptQuestions(attempt)
       .slice()
       .sort((left, right) => left.deliveredOrder - right.deliveredOrder)
       .map((attemptQuestion) => byId.get(attemptQuestion.questionId))
@@ -235,7 +238,7 @@ function ExamEnginePage() {
   async function handleStartExam(examId: number) {
     const examResult = await queryClient.fetchQuery({ queryKey: ["exam", examId], queryFn: () => getExam(examId) })
     setActiveExamOverride(examResult)
-    setSelectedQuestionId(examResult.groups[0]?.questions[0]?.id ?? null)
+    setSelectedQuestionId(getExamQuestions(examResult)[0]?.id ?? null)
     startAttemptMutation.mutate(examId)
   }
 
@@ -310,39 +313,43 @@ function ExamEnginePage() {
             </div>
           )}
 
-          {mainView === "teacher" ? (
-            <TeacherPortal
-              activeExam={activeExam}
-              addGroup={(examId) => addQuestionGroupMutation.mutate(examId)}
-              archiveExam={(examId) => archiveExamMutation.mutate(examId)}
-              dashboard={dashboard}
-              duplicateExam={(examId) => duplicateExamMutation.mutate(examId)}
-              importFromBank={(examId, groupId, itemIds) => importQuestionsMutation.mutate({ examId, groupId, itemIds })}
-              panel={teacherPanel}
-              publishExam={(examId) => publishExamMutation.mutate(examId)}
-              publishMarks={(examId) => publishMarksMutation.mutate(examId)}
-              questionBank={questionBank}
-              setPanel={setTeacherPanel}
-              updateExam={(exam) => updateExamMutation.mutate(exam)}
-              uploadAttachment={(examId, file) => uploadExamAttachmentMutation.mutate({ examId, file })}
-            />
-          ) : (
-            <StudentPortal
-              activeExam={activeExam}
-              answers={answers}
-              attempt={attempt}
-              onSaveAnswer={handleSaveAnswer}
-              onSelectQuestion={setSelectedQuestionId}
-              onStartExam={handleStartExam}
-              onSubmitAttempt={handleSubmitAttempt}
-              onUploadFile={handleUploadFile}
-              panel={studentPanel}
-              questions={questions}
-              selectedQuestion={selectedQuestion}
-              setPanel={setStudentPanel}
-              studentExams={studentExams}
-            />
-          )}
+          <ErrorBoundary fallback={<PanelCrashFallback />}>
+            {apiError && !activeExam && dashboardQuery.isError ? (
+              <ApiUnavailable />
+            ) : mainView === "teacher" ? (
+              <TeacherPortal
+                activeExam={activeExam}
+                addGroup={(examId) => addQuestionGroupMutation.mutate(examId)}
+                archiveExam={(examId) => archiveExamMutation.mutate(examId)}
+                dashboard={dashboard}
+                duplicateExam={(examId) => duplicateExamMutation.mutate(examId)}
+                importFromBank={(examId, groupId, itemIds) => importQuestionsMutation.mutate({ examId, groupId, itemIds })}
+                panel={teacherPanel}
+                publishExam={(examId) => publishExamMutation.mutate(examId)}
+                publishMarks={(examId) => publishMarksMutation.mutate(examId)}
+                questionBank={questionBank}
+                setPanel={setTeacherPanel}
+                updateExam={(exam) => updateExamMutation.mutate(exam)}
+                uploadAttachment={(examId, file) => uploadExamAttachmentMutation.mutate({ examId, file })}
+              />
+            ) : (
+              <StudentPortal
+                activeExam={activeExam}
+                answers={answers}
+                attempt={attempt}
+                onSaveAnswer={handleSaveAnswer}
+                onSelectQuestion={setSelectedQuestionId}
+                onStartExam={handleStartExam}
+                onSubmitAttempt={handleSubmitAttempt}
+                onUploadFile={handleUploadFile}
+                panel={studentPanel}
+                questions={questions}
+                selectedQuestion={selectedQuestion}
+                setPanel={setStudentPanel}
+                studentExams={studentExams}
+              />
+            )}
+          </ErrorBoundary>
         </section>
       </div>
     </main>
@@ -372,6 +379,31 @@ function SideButton({
       <Icon className="size-4" />
       {label}
     </button>
+  )
+}
+
+function PanelCrashFallback() {
+  return (
+    <div className="m-4 rounded-lg border border-destructive/30 bg-red-50 p-4 text-sm text-red-900 lg:m-6">
+      <div className="font-medium">This exam section crashed while rendering.</div>
+      <p className="mt-1 text-red-800">The rest of the app is still available. Refresh after fixing the data or API response.</p>
+    </div>
+  )
+}
+
+function ApiUnavailable() {
+  return (
+    <div className="flex-1 p-4 lg:p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Exam API is not running</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>The frontend is loaded, but `/api` requests are failing. Start the ASP.NET API, then refresh this page.</p>
+          <p>For frontend-only demo data, run Vite with `VITE_EXAM_ENGINE_DEMO=true`.</p>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
@@ -452,7 +484,17 @@ function TeacherPortal({
           uploadAttachment={uploadAttachment}
         />
       )}
-      {panel === "bank" && <QuestionBankLibrary questionBank={questionBank} />}
+      {panel === "bank" && activeExam && (
+        <QuestionBankLibrary
+          importFromBank={(itemId) => {
+            const firstGroup = getExamGroups(activeExam)[0]
+            if (firstGroup) {
+              importFromBank(activeExam.id, firstGroup.id, [itemId])
+            }
+          }}
+          questionBank={questionBank}
+        />
+      )}
       {panel === "grading" && activeExam && <TeacherGrading exam={activeExam} publishMarks={publishMarks} />}
     </div>
   )
@@ -536,7 +578,7 @@ function TeacherDashboard({
                     <td className="px-4 py-3">{exam.questionCount}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
-                        <IconButton title="Preview" icon={Eye} />
+                        <IconButton title="Preview" icon={Eye} onClick={() => editExam(exam.id)} />
                         <IconButton title="Edit" icon={Settings} onClick={() => editExam(exam.id)} />
                         <IconButton title="Publish" icon={CheckCircle2} onClick={() => publishExam(exam.id)} />
                         <IconButton title="Duplicate" icon={Copy} onClick={() => duplicateExam(exam.id)} />
@@ -572,7 +614,8 @@ function ExamBuilder({
   updateExam: (exam: Exam) => void
   uploadAttachment: (examId: number, file: File) => void
 }) {
-  const firstQuestion = exam.groups[0]?.questions[0]
+  const groups = getExamGroups(exam)
+  const firstQuestion = getGroupQuestions(groups[0])[0]
   const [selectedBankItems, setSelectedBankItems] = useState<number[]>([])
   const [attachment, setAttachment] = useState<File | null>(null)
 
@@ -583,17 +626,17 @@ function ExamBuilder({
           <CardTitle>Groups</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {exam.groups.map((group) => (
+          {groups.map((group) => (
             <div key={group.id} className="rounded-md border bg-muted/30 p-3">
               <div className="flex items-center justify-between">
                 <div className="font-medium">{group.title}</div>
-                <Badge variant="secondary">{group.questions.length}</Badge>
+                <Badge variant="secondary">{getGroupQuestions(group).length}</Badge>
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {group.selectionPolicy === "pick-random" ? `Pick ${group.questionsToShow}` : "Show all"} • {group.shuffleQuestions ? "Shuffle" : "Fixed"}
               </div>
               <div className="mt-3 space-y-1">
-                {group.questions.map((question) => (
+                {getGroupQuestions(group).map((question) => (
                   <div key={question.id} className="rounded border bg-card px-2 py-1 text-xs">
                     {question.authoringOrder}. {question.type} • {question.mark} marks
                   </div>
@@ -639,9 +682,9 @@ function ExamBuilder({
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-medium">Add From Question Bank</h3>
               <Button
-                disabled={selectedBankItems.length === 0 || !exam.groups[0]}
+                disabled={selectedBankItems.length === 0 || !groups[0]}
                 size="sm"
-                onClick={() => exam.groups[0] && importFromBank(exam.id, exam.groups[0].id, selectedBankItems)}
+                onClick={() => groups[0] && importFromBank(exam.id, groups[0].id, selectedBankItems)}
               >
                 <Database className="size-4" /> Add Selected ({selectedBankItems.length})
               </Button>
@@ -713,7 +756,13 @@ function ExamBuilder({
   )
 }
 
-function QuestionBankLibrary({ questionBank }: { questionBank: QuestionBankItem[] }) {
+function QuestionBankLibrary({
+  importFromBank,
+  questionBank,
+}: {
+  importFromBank: (itemId: number) => void
+  questionBank: QuestionBankItem[]
+}) {
   return (
     <Card>
       <CardHeader>
@@ -739,7 +788,7 @@ function QuestionBankLibrary({ questionBank }: { questionBank: QuestionBankItem[
                 <Badge variant="outline">{item.question.difficulty}</Badge>
                 <Badge variant="outline">{item.question.mark} marks</Badge>
               </div>
-              <Button className="mt-4 w-full" variant="outline" size="sm"><Plus className="size-4" /> Add to Exam</Button>
+              <Button className="mt-4 w-full" variant="outline" size="sm" onClick={() => importFromBank(item.id)}><Plus className="size-4" /> Add to Exam</Button>
             </div>
           ))}
         </div>
@@ -749,10 +798,20 @@ function QuestionBankLibrary({ questionBank }: { questionBank: QuestionBankItem[
 }
 
 function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (examId: number) => void }) {
-  const questions = exam.groups.flatMap((group) => group.questions)
+  const questions = getExamQuestions(exam)
+  const gradingAnswersQuery = useQuery({ queryKey: ["exam-grading", exam.id], queryFn: () => getGradingAnswers(exam.id) })
+  const queryClient = useQueryClient()
+  const gradeMutation = useMutation({
+    mutationFn: ({ answerId, awardedMark, feedback }: { answerId: number; awardedMark: number; feedback: string }) =>
+      gradeAnswer(answerId, awardedMark, feedback),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["exam-grading", exam.id] })
+    },
+  })
   const manualQuestions = questions.filter((question) =>
     question.type === "Article" || question.type === "FileUpload" || (question.type === "ShortAnswer" && question.gradingRule !== "exact-match"),
   )
+  const gradingAnswers = gradingAnswersQuery.data ?? []
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -761,7 +820,9 @@ function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (exa
           <CardTitle>Manual Grading Queue</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {manualQuestions.map((question, index) => (
+          {manualQuestions.map((question, index) => {
+            const answer = gradingAnswers.find((item) => item.questionId === question.id)
+            return (
             <div key={question.id} className="rounded-md border p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
@@ -772,12 +833,29 @@ function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (exa
               </div>
               <MarkdownContent content={question.bodyMarkdown} />
               <div className="mt-4 grid gap-3 md:grid-cols-[120px_minmax(0,1fr)_auto]">
-                <Input placeholder="Mark" type="number" />
-                <Input placeholder="Teacher feedback" />
-                <Button size="sm">Save Grade</Button>
+                <Input id={`mark-${question.id}`} placeholder="Mark" type="number" />
+                <Input id={`feedback-${question.id}`} placeholder="Teacher feedback" />
+                <Button
+                  disabled={!answer}
+                  size="sm"
+                  onClick={() => {
+                    const markInput = document.getElementById(`mark-${question.id}`) as HTMLInputElement | null
+                    const feedbackInput = document.getElementById(`feedback-${question.id}`) as HTMLInputElement | null
+                    if (answer) {
+                      gradeMutation.mutate({
+                        answerId: answer.id,
+                        awardedMark: Number(markInput?.value ?? 0),
+                        feedback: feedbackInput?.value ?? "",
+                      })
+                    }
+                  }}
+                >
+                  Save Grade
+                </Button>
               </div>
             </div>
-          ))}
+          )})}
+          {manualQuestions.length === 0 && <div className="text-sm text-muted-foreground">No manual grading items are available.</div>}
         </CardContent>
       </Card>
 
@@ -1035,15 +1113,15 @@ function QuestionAnswerInput({
 }) {
   const [uploadState, setUploadState] = useState<"empty" | "uploading" | "uploaded" | "failed" | "removed">("empty")
   const [matchingAnswers, setMatchingAnswers] = useState<Record<number, string>>({})
-  const [orderingAnswer, setOrderingAnswer] = useState<string[]>(question.orderingItems)
+  const [orderingAnswer, setOrderingAnswer] = useState<string[]>(getOrderingItems(question))
   const parsedAnswer = parseAnswer(answer?.answerJson)
 
   if (question.type === "MultipleChoice") {
     const orderedOptions = optionOrder.length > 0
       ? optionOrder
-          .map((optionId) => question.options.find((option) => option.id === optionId))
+          .map((optionId) => getQuestionOptions(question).find((option) => option.id === optionId))
           .filter((option): option is ExamQuestion["options"][number] => Boolean(option))
-      : question.options
+      : getQuestionOptions(question)
 
     return (
       <div className="space-y-2">
@@ -1135,11 +1213,12 @@ function QuestionAnswerInput({
   }
 
   if (question.type === "Matching") {
-    const rightValues = question.matchPairs.map((pair) => pair.rightMarkdown)
+    const matchPairs = getMatchPairs(question)
+    const rightValues = matchPairs.map((pair) => pair.rightMarkdown)
 
     return (
       <div className="space-y-3">
-        {question.matchPairs.map((pair) => (
+        {matchPairs.map((pair) => (
           <div key={pair.id} className="grid gap-3 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <MarkdownContent content={pair.leftMarkdown} />
             <select
@@ -1427,6 +1506,34 @@ function formatTime(value: string) {
 
 function durationMinutes(start: string, end: string) {
   return Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000))
+}
+
+function getExamGroups(exam?: Exam | null) {
+  return Array.isArray(exam?.groups) ? exam.groups : []
+}
+
+function getGroupQuestions(group?: Exam["groups"][number]) {
+  return Array.isArray(group?.questions) ? group.questions : []
+}
+
+function getExamQuestions(exam?: Exam | null) {
+  return getExamGroups(exam).flatMap((group) => getGroupQuestions(group))
+}
+
+function getAttemptQuestions(attempt?: ExamAttempt | null) {
+  return Array.isArray(attempt?.questions) ? attempt.questions : []
+}
+
+function getQuestionOptions(question: ExamQuestion) {
+  return Array.isArray(question.options) ? question.options : []
+}
+
+function getMatchPairs(question: ExamQuestion) {
+  return Array.isArray(question.matchPairs) ? question.matchPairs : []
+}
+
+function getOrderingItems(question: ExamQuestion) {
+  return Array.isArray(question.orderingItems) ? question.orderingItems : []
 }
 
 function parseAnswer(answerJson?: string) {

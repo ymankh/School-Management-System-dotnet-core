@@ -204,7 +204,7 @@ public sealed class ExamsController(ExamEngineStore store, IWebHostEnvironment e
     public IActionResult GetGrading(int id)
     {
         var answers = store.GetGradingAnswers(id);
-        return answers is null ? NotFound() : Ok(answers.Select(ExamEngineStore.ToAnswerDto));
+        return answers is null ? NotFound() : Ok(answers.Select(answer => ExamEngineStore.ToAnswerDto(answer)));
     }
 
     [HttpPut("answers/{answerId:int}/grade")]
