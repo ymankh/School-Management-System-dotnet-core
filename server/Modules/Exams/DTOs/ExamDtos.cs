@@ -31,6 +31,7 @@ public sealed record CreateExamRequest(
     int ClassSubjectId,
     string Subject,
     string ClassName,
+    string TeacherName,
     ExamMode Mode,
     DateTime StartAtUtc,
     DateTime EndAtUtc,
@@ -81,6 +82,11 @@ public sealed record CreateQuestionRequest(
     IReadOnlyList<string> OrderingItems,
     IReadOnlyList<string> AcceptedAnswers,
     FileUploadRule? FileUploadRule);
+
+public sealed record CreateQuestionBankItemRequest(
+    string Subject,
+    string OwnerName,
+    CreateQuestionRequest Question);
 
 public sealed record QuestionOptionDto(int Id, string TextMarkdown, bool IsCorrect, int AuthoringOrder);
 

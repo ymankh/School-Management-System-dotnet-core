@@ -76,7 +76,7 @@ public class Program
         {
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
-        builder.Services.AddSingleton<ExamEngineStore>();
+        builder.Services.AddScoped<ExamEngineStore>();
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
             if (builder.Environment.IsDevelopment())
@@ -90,6 +90,12 @@ public class Program
         });
 
         var app = builder.Build();
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Database.EnsureCreated();
+        }
 
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())

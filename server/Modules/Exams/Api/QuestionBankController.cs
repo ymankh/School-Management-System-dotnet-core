@@ -15,7 +15,7 @@ public sealed class QuestionBankController(ExamEngineStore store) : ControllerBa
     }
 
     [HttpPost]
-    public IActionResult AddQuestionBankItem(CreateQuestionRequest request)
+    public IActionResult AddQuestionBankItem(CreateQuestionBankItemRequest request)
     {
         return Ok(store.AddQuestionBankItem(request));
     }

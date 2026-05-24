@@ -88,7 +88,7 @@ public sealed class QuestionGroup
 public sealed class ExamQuestion
 {
     public int Id { get; set; }
-    public int GroupId { get; set; }
+    public int? GroupId { get; set; }
     public QuestionType Type { get; set; }
     public string BodyMarkdown { get; set; } = string.Empty;
     public string ReferenceMarkdown { get; set; } = string.Empty;
@@ -109,6 +109,7 @@ public sealed class ExamQuestion
 public sealed class QuestionOption
 {
     public int Id { get; set; }
+    public int QuestionId { get; set; }
     public string TextMarkdown { get; set; } = string.Empty;
     public bool IsCorrect { get; set; }
     public int AuthoringOrder { get; set; }
@@ -117,6 +118,7 @@ public sealed class QuestionOption
 public sealed class QuestionMatchPair
 {
     public int Id { get; set; }
+    public int QuestionId { get; set; }
     public string LeftMarkdown { get; set; } = string.Empty;
     public string RightMarkdown { get; set; } = string.Empty;
     public int AuthoringOrder { get; set; }
@@ -136,6 +138,13 @@ public sealed class ExamAttachment
     public string ContentType { get; set; } = string.Empty;
     public string Url { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
+}
+
+public sealed class ExamStudentAssignment
+{
+    public int Id { get; set; }
+    public int ExamId { get; set; }
+    public int StudentId { get; set; }
 }
 
 public sealed class ExamAttempt

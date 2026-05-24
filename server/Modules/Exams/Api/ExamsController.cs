@@ -20,8 +20,8 @@ public sealed class ExamsController(ExamEngineStore store, IWebHostEnvironment e
         return Ok(store.GetDashboard(status, search, className, subject, date, mode));
     }
 
-    [HttpGet("students/me/exams")]
-    public IActionResult GetStudentExams([FromQuery] int studentId = 1)
+    [HttpGet("students/{studentId:int}/exams")]
+    public IActionResult GetStudentExams(int studentId)
     {
         return Ok(store.GetStudentExams(studentId));
     }
@@ -86,11 +86,6 @@ public sealed class ExamsController(ExamEngineStore store, IWebHostEnvironment e
         if (file.Length == 0)
         {
             return BadRequest(new { error = "Uploaded file is empty." });
-        }
-
-        if (file.Length > 10 * 1024 * 1024)
-        {
-            return BadRequest(new { error = "File size cannot exceed 10MB." });
         }
 
         var upload = await SaveUploadAsync(file, Path.Combine("exam-attachments", id.ToString()));
@@ -163,22 +158,22 @@ public sealed class ExamsController(ExamEngineStore store, IWebHostEnvironment e
             return BadRequest(new { error = "Uploaded file is empty." });
         }
 
-        var allowedContentTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        var uploadRule = store.GetFileUploadRule(attemptId, questionId);
+        if (uploadRule is null)
         {
-            "image/jpeg",
-            "image/png",
-            "application/pdf"
-        };
+            return NotFound();
+        }
+
+        var allowedContentTypes = new HashSet<string>(uploadRule.AcceptedContentTypes, StringComparer.OrdinalIgnoreCase);
 
         if (!allowedContentTypes.Contains(file.ContentType))
         {
-            return BadRequest(new { error = "Only JPG, PNG, and PDF files are accepted." });
+            return BadRequest(new { error = "This file type is not accepted for the selected question." });
         }
 
-        const long maxSizeBytes = 10 * 1024 * 1024;
-        if (file.Length > maxSizeBytes)
+        if (file.Length > uploadRule.MaxSizeBytes)
         {
-            return BadRequest(new { error = "File size cannot exceed 10MB." });
+            return BadRequest(new { error = $"File size cannot exceed {uploadRule.MaxSizeBytes} bytes." });
         }
 
         var upload = await SaveUploadAsync(file, Path.Combine("attempt-files", attemptId.ToString(), questionId.ToString()));

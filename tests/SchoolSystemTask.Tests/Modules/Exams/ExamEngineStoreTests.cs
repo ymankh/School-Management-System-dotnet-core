@@ -1,3 +1,6 @@
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using SchoolSystemTask.Data;
 using SchoolSystemTask.Modules.Exams.Application;
 using SchoolSystemTask.Modules.Exams.Domain;
 using SchoolSystemTask.Modules.Exams.DTOs;
@@ -9,13 +12,15 @@ public class ExamEngineStoreTests
     [Fact]
     public void GetDashboard_AppliesTeacherDashboardFilters()
     {
-        var store = new ExamEngineStore();
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
         var tomorrow = DateTime.UtcNow.Date.AddDays(1).AddHours(9);
         var created = store.CreateExam(new CreateExamRequest(
             "Physics Paper Assessment",
             20,
             "Physics",
             "Grade 11 - B",
+            "Dr. Faraday",
             ExamMode.Paper,
             tomorrow,
             tomorrow.AddHours(2),
@@ -36,7 +41,7 @@ public class ExamEngineStoreTests
             subject: "Physics",
             date: "upcoming",
             mode: "Paper");
-        var teacherSearch = store.GetDashboard(search: "Current Teacher");
+        var teacherSearch = store.GetDashboard(search: "Dr. Faraday");
 
         var exam = Assert.Single(physics.Exams);
         Assert.Equal(created.Id, exam.Id);
@@ -47,10 +52,43 @@ public class ExamEngineStoreTests
     [Fact]
     public void UpdateExam_PersistsSubmittedQuestionDrafts()
     {
-        var store = new ExamEngineStore();
-        var exam = store.GetExam(1)!;
-        var group = exam.Groups[0];
-        var originalQuestion = group.Questions[0];
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
+        var exam = store.CreateExam(new CreateExamRequest(
+            "Algebra Quiz",
+            10,
+            "Mathematics",
+            "Grade 10 - A",
+            "Dr. Noether",
+            ExamMode.Online,
+            DateTime.UtcNow.AddHours(1),
+            DateTime.UtcNow.AddHours(2),
+            10,
+            5,
+            "Instructions"));
+        var group = store.AddGroup(exam.Id, new CreateQuestionGroupRequest(
+            "Core Skills",
+            "Group instructions",
+            "show-all",
+            null,
+            true))!;
+        var originalQuestion = store.AddQuestion(group.Id, new CreateQuestionRequest(
+            QuestionType.MultipleChoice,
+            "Original question",
+            string.Empty,
+            1,
+            true,
+            "Easy",
+            ["algebra"],
+            "auto",
+            true,
+            [new QuestionOptionDto(0, "A", true, 1)],
+            [],
+            [],
+            [],
+            null))!;
+        exam = store.GetExam(exam.Id)!;
+        group = exam.Groups[0];
         var updatedBody = "Updated question with $x^2 + 5x + 6$";
         var newBody = "New teacher-authored question with $y = 2x$";
 
@@ -128,5 +166,28 @@ public class ExamEngineStoreTests
         var addedQuestion = Assert.Single(updated.Groups[0].Questions, question => question.BodyMarkdown == newBody);
         Assert.True(addedQuestion.Id > 0);
         Assert.Equal(updated.Groups[0].Id, addedQuestion.GroupId);
+    }
+
+    private static TestDatabase CreateDatabase()
+    {
+        var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        var context = new ApplicationDbContext(options);
+        context.Database.EnsureCreated();
+        return new TestDatabase(connection, context);
+    }
+
+    private sealed class TestDatabase(SqliteConnection connection, ApplicationDbContext context) : IDisposable
+    {
+        public ApplicationDbContext Context { get; } = context;
+
+        public void Dispose()
+        {
+            Context.Dispose();
+            connection.Dispose();
+        }
     }
 }

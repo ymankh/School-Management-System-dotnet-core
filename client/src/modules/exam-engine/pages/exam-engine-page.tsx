@@ -120,6 +120,7 @@ function ExamEnginePage() {
   const [activeExamOverride, setActiveExamOverride] = useState<Exam | null>(null)
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null)
   const [answers, setAnswers] = useState<Record<number, StudentAnswer>>({})
+  const [studentIdInput, setStudentIdInput] = useState("")
   const [dashboardFilters, setDashboardFilters] = useState<Required<ExamDashboardFilters>>({
     className: "all",
     date: "all",
@@ -130,17 +131,22 @@ function ExamEnginePage() {
   })
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null)
   const queryClient = useQueryClient()
+  const studentId = Number.parseInt(studentIdInput, 10)
+  const hasStudentId = Number.isInteger(studentId) && studentId > 0
 
   const dashboardQuery = useQuery({
     queryKey: ["exam-dashboard", dashboardFilters],
     queryFn: () => getExamDashboard(dashboardFilters),
   })
-  const studentExamsQuery = useQuery({ queryKey: ["student-exams"], queryFn: getStudentExams })
+  const studentExamsQuery = useQuery({
+    enabled: hasStudentId,
+    queryKey: ["student-exams", studentId],
+    queryFn: () => getStudentExams(studentId),
+  })
   const questionBankQuery = useQuery({ queryKey: ["question-bank"], queryFn: getQuestionBank })
-  const activeExamQuery = useQuery({ queryKey: ["exam", 1], queryFn: () => getExam(1) })
 
   const startAttemptMutation = useMutation({
-    mutationFn: startAttempt,
+    mutationFn: ({ examId, studentId }: { examId: number; studentId: number }) => startAttempt(examId, studentId),
     onSuccess: (attemptResult) => {
       setAttempt(attemptResult)
       setAnswers(Object.fromEntries(attemptResult.answers.map((answer) => [answer.questionId, answer])))
@@ -255,12 +261,11 @@ function ExamEnginePage() {
   const dashboard = dashboardQuery.data ?? null
   const studentExams = studentExamsQuery.data ?? []
   const questionBank = questionBankQuery.data ?? []
-  const activeExam = activeExamOverride ?? activeExamQuery.data ?? null
+  const activeExam = activeExamOverride
   const apiError =
     dashboardQuery.error ??
-    studentExamsQuery.error ??
+    (hasStudentId ? studentExamsQuery.error : null) ??
     questionBankQuery.error ??
-    activeExamQuery.error ??
     startAttemptMutation.error ??
     saveAnswerMutation.error ??
     uploadFileMutation.error ??
@@ -290,10 +295,14 @@ function ExamEnginePage() {
   const selectedQuestion = questions.find((question) => question.id === selectedQuestionId) ?? questions[0]
 
   async function handleStartExam(examId: number) {
+    if (!hasStudentId) {
+      return
+    }
+
     const examResult = await queryClient.fetchQuery({ queryKey: ["exam", examId], queryFn: () => getExam(examId) })
     setActiveExamOverride(examResult)
     setSelectedQuestionId(getExamQuestions(examResult)[0]?.id ?? null)
-    startAttemptMutation.mutate(examId)
+    startAttemptMutation.mutate({ examId, studentId })
   }
 
   async function handleOpenTeacherExam(examId: number, panel: TeacherPanel) {
@@ -409,6 +418,8 @@ function ExamEnginePage() {
                 questions={questions}
                 selectedQuestion={selectedQuestion}
                 setPanel={setStudentPanel}
+                setStudentIdInput={setStudentIdInput}
+                studentIdInput={studentIdInput}
                 studentExams={studentExams}
               />
             )}
@@ -463,7 +474,7 @@ function ApiUnavailable() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>The frontend is loaded, but `/api` requests are failing. Start the ASP.NET API, then refresh this page.</p>
-          <p>For frontend-only demo data, run Vite with `VITE_EXAM_ENGINE_DEMO=true`.</p>
+          <p>The exam engine no longer uses frontend fallback data. Start the ASP.NET API with a migrated database, then refresh this page.</p>
         </CardContent>
       </Card>
     </div>
@@ -1161,6 +1172,8 @@ function StudentPortal({
   questions,
   selectedQuestion,
   setPanel,
+  setStudentIdInput,
+  studentIdInput,
   studentExams,
 }: {
   activeExam: Exam | null
@@ -1175,11 +1188,21 @@ function StudentPortal({
   questions: ExamQuestion[]
   selectedQuestion?: ExamQuestion
   setPanel: (panel: StudentPanel) => void
+  setStudentIdInput: (value: string) => void
+  studentIdInput: string
   studentExams: ExamSummary[]
 }) {
   return (
     <div className="flex-1 overflow-auto p-4 lg:p-6">
-      {panel === "list" && <StudentExamList exams={studentExams} onShowResults={() => setPanel("results")} onStartExam={onStartExam} />}
+      {panel === "list" && (
+        <StudentExamList
+          exams={studentExams}
+          onShowResults={() => setPanel("results")}
+          onStartExam={onStartExam}
+          setStudentIdInput={setStudentIdInput}
+          studentIdInput={studentIdInput}
+        />
+      )}
       {panel === "player" && activeExam && selectedQuestion && (
         <ExamPlayer
           attempt={attempt}
@@ -1205,12 +1228,17 @@ function StudentExamList({
   exams,
   onShowResults,
   onStartExam,
+  setStudentIdInput,
+  studentIdInput,
 }: {
   exams: ExamSummary[]
   onShowResults: () => void
   onStartExam: (examId: number) => Promise<void>
+  setStudentIdInput: (value: string) => void
+  studentIdInput: string
 }) {
   const [tab, setTab] = useState<"upcoming" | "active" | "completed">("active")
+  const hasStudentId = Number.isInteger(Number.parseInt(studentIdInput, 10)) && Number.parseInt(studentIdInput, 10) > 0
   const filteredExams = exams.filter((exam) => {
     if (tab === "active") {
       return exam.status === "Active"
@@ -1229,16 +1257,26 @@ function StudentExamList({
         <h2 className="text-2xl font-semibold">Exams and Quizzes</h2>
         <p className="text-sm text-muted-foreground">Track upcoming, active, and completed exams.</p>
       </div>
-      <div className="flex gap-2">
-        {(["upcoming", "active", "completed"] as const).map((item) => (
-          <Button key={item} variant={tab === item ? "default" : "outline"} size="sm" onClick={() => setTab(item)}>
-            {item[0].toUpperCase() + item.slice(1)}
-          </Button>
-        ))}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex gap-2">
+          {(["upcoming", "active", "completed"] as const).map((item) => (
+            <Button key={item} variant={tab === item ? "default" : "outline"} size="sm" onClick={() => setTab(item)}>
+              {item[0].toUpperCase() + item.slice(1)}
+            </Button>
+          ))}
+        </div>
+        <Input
+          className="w-full lg:w-56"
+          inputMode="numeric"
+          placeholder="Student ID"
+          value={studentIdInput}
+          onChange={(event) => setStudentIdInput(event.target.value)}
+        />
       </div>
       <Card>
         <CardContent className="grid gap-3 py-4 lg:grid-cols-3">
-          {filteredExams.length === 0 && <div className="text-sm text-muted-foreground">No exams in this tab.</div>}
+          {!hasStudentId && <div className="text-sm text-muted-foreground">Enter a student ID to load assigned exams.</div>}
+          {hasStudentId && filteredExams.length === 0 && <div className="text-sm text-muted-foreground">No exams in this tab.</div>}
           {filteredExams.map((exam) => (
             <div key={`${tab}-${exam.id}`} className="rounded-md border p-3">
               <div className="flex items-start justify-between gap-3">
@@ -1496,22 +1534,27 @@ function QuestionAnswerInput({
   }
 
   if (question.type === "FileUpload") {
-    const acceptedTypes = question.fileUploadRule?.acceptedContentTypes ?? ["image/jpeg", "image/png", "application/pdf"]
-    const maxSizeBytes = question.fileUploadRule?.maxSizeBytes ?? 10 * 1024 * 1024
+    const acceptedTypes = question.fileUploadRule?.acceptedContentTypes ?? []
+    const maxSizeBytes = question.fileUploadRule?.maxSizeBytes ?? 0
     const acceptExtensions = acceptedTypes.includes("application/pdf") ? ".jpg,.jpeg,.png,.pdf" : acceptedTypes.join(",")
+    const canUpload = acceptedTypes.length > 0 && maxSizeBytes > 0
 
     return (
       <div className="rounded-md border border-dashed p-6 text-center">
         <Upload className="mx-auto mb-2 size-8 text-muted-foreground" />
         <div className="font-medium">Drag and drop files here or browse</div>
-        <div className="mt-1 text-xs text-muted-foreground">Accepted: {acceptedTypes.join(", ")} • Max {Math.round(maxSizeBytes / 1024 / 1024)}MB</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {canUpload
+            ? `Accepted: ${acceptedTypes.join(", ")} • Max ${Math.round(maxSizeBytes / 1024 / 1024)}MB`
+            : "Upload rules are not configured for this question."}
+        </div>
         <label className="mt-4 inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-input px-3 text-sm font-medium hover:bg-muted">
           <FileUp className="size-4" />
           Choose File
           <input
             accept={acceptExtensions}
             className="sr-only"
-            disabled={locked}
+            disabled={locked || !canUpload}
             type="file"
             onChange={(event) => {
               const file = event.target.files?.[0]
@@ -1861,6 +1904,14 @@ function ResultsFeedback({
   exam: Exam
   questions: ExamQuestion[]
 }) {
+  const completedAt = attempt?.submittedAtUtc ? formatDate(attempt.submittedAtUtc) : "Not submitted"
+  const timeTaken = attempt?.submittedAtUtc
+    ? `${durationMinutes(attempt.startedAtUtc, attempt.submittedAtUtc)} minutes`
+    : "In progress"
+  const feedbackItems = questions
+    .map((question) => answers[question.id]?.teacherFeedback)
+    .filter((feedback): feedback is string => Boolean(feedback?.trim()))
+
   if (!exam.markPublished) {
     return (
       <Card>
@@ -1887,12 +1938,16 @@ function ResultsFeedback({
           </div>
           <div>
             <h2 className="text-2xl font-semibold">{exam.title}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Time taken: 45 minutes • Completed: today</p>
+            <p className="mt-2 text-sm text-muted-foreground">Time taken: {timeTaken} • Completed: {completedAt}</p>
             <div className="mt-4 rounded-md border bg-muted/40 p-4">
               <div className="mb-1 font-medium">Teacher Feedback</div>
-              <p className="text-sm text-muted-foreground">
-                Strong work on objective questions. Review the quadratic explanation feedback before the final.
-              </p>
+              {feedbackItems.length > 0 ? (
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {feedbackItems.map((feedback, index) => <p key={`${feedback}-${index}`}>{feedback}</p>)}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No teacher feedback has been published for this attempt.</p>
+              )}
             </div>
           </div>
         </CardContent>
