@@ -169,3 +169,15 @@ or:
 ```csharp
 authorizationService.AuthorizeAsync(user, "students:create")
 ```
+
+## 11. Generate migrations with the CLI
+
+Do not create or edit EF Core migration files by hand. Update the model and `ApplicationDbContext` configuration first, then generate the migration with the EF Core CLI.
+
+Good:
+
+```bash
+dotnet ef migrations add AddExamEngineTables --project server
+```
+
+Use manual migration edits only when the generated migration cannot safely express a required data operation, and keep those edits minimal and documented in the migration.
