@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   BookOpen,
@@ -41,7 +41,6 @@ import { TeacherPortal } from "@/modules/exam-engine/components/teacher-portal"
 import type { Exam, ExamAttempt, ExamDashboard, ExamQuestion, StudentAnswer } from "@/modules/exam-engine/types/exam-engine.types"
 import type { MainView, StudentPage, StudentPanel, TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 import { getAttemptQuestions, getExamQuestions } from "@/modules/exam-engine/utils/exam-engine-model"
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
 import { ErrorBoundary } from "@/shared/components/error-boundary"
 import {
   Sidebar,
@@ -80,13 +79,11 @@ type DashboardShellProps = {
 }
 
 const viewLabels: Record<MainView, string> = {
-  admin: "Admin Portal",
   student: "Student Portal",
   teacher: "Teacher Portal",
 }
 
 const viewIcons: Record<MainView, typeof LayoutDashboard> = {
-  admin: ShieldCheck,
   student: BookOpen,
   teacher: LayoutDashboard,
 }
@@ -114,15 +111,11 @@ const studentPageIcons: Record<StudentPage, typeof LayoutDashboard> = {
 const studentPages: StudentPage[] = ["dashboard", "schedule", "homework", "exams", "messages", "profile", "settings"]
 
 function getAllowedViews(role?: AuthUser["role"]): MainView[] {
-  if (role === "student") {
-    return ["student"]
+  if (role === "teacher" || role === "student") {
+    return [role]
   }
 
-  if (role === "teacher") {
-    return ["teacher"]
-  }
-
-  return ["admin", "teacher", "student"]
+  return []
 }
 
 function getDefaultView(role?: AuthUser["role"], initialView: MainView = "teacher") {
@@ -157,11 +150,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
   const canUseStudentPortal = allowedViews.includes("student")
   const canEditStudentId = currentUser?.role !== "student"
 
-  useEffect(() => {
-    if (!allowedViews.includes(mainView)) {
-      setMainView(allowedViews[0])
-    }
-  }, [allowedViews, mainView])
+  const activeMainView = allowedViews.includes(mainView) ? mainView : allowedViews[0] ?? "teacher"
 
   const dashboardQuery = useQuery({
     enabled: canUseTeacherPortal,
@@ -411,7 +400,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
 
   return (
     <DashboardShell
-      activeView={mainView}
+      activeView={activeMainView}
       allowedViews={allowedViews}
       currentUser={currentUser}
       onLogout={onLogout}
@@ -428,7 +417,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
           API error: {apiError instanceof Error ? apiError.message : "The exam API request failed."}
         </div>
       )}
-      {teacherNotice && mainView === "teacher" && (
+      {teacherNotice && activeMainView === "teacher" && (
         <div className="border-b border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary lg:px-6">
           {teacherNotice}
         </div>
@@ -437,7 +426,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
       <ErrorBoundary fallback={<PanelCrashFallback />}>
         {apiError && !activeExam && dashboardQuery.isError ? (
           <ApiUnavailable />
-        ) : mainView === "teacher" && canUseTeacherPortal ? (
+        ) : activeMainView === "teacher" && canUseTeacherPortal ? (
           <TeacherPortal
             activeExam={activeExam}
             archiveExam={(examId) => archiveExamMutation.mutate(examId)}
@@ -456,7 +445,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
             updateExam={(exam) => updateExamMutation.mutate(exam)}
             uploadAttachment={(examId, file) => uploadExamAttachmentMutation.mutate({ examId, file })}
           />
-        ) : mainView === "student" && canUseStudentPortal ? (
+        ) : activeMainView === "student" && canUseStudentPortal ? (
           <StudentPortal
             activeExam={activeExam}
             answers={answers}
@@ -478,7 +467,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
             studentExams={studentExams}
           />
         ) : (
-          <AdminPortal />
+          <ApiUnavailable />
         )}
       </ErrorBoundary>
     </DashboardShell>
@@ -608,25 +597,6 @@ function DashboardShell({
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
-  )
-}
-
-function AdminPortal() {
-  return (
-    <div className="flex-1 overflow-auto p-4 lg:p-6">
-      <div className="mb-5">
-        <h2 className="text-2xl font-semibold">Admin Portal</h2>
-        <p className="text-sm text-muted-foreground">System-level dashboards will appear here when admin modules are connected.</p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Administration</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          No admin modules are available yet.
-        </CardContent>
-      </Card>
-    </div>
   )
 }
 

@@ -10,8 +10,6 @@ namespace SchoolSystemTask.Modules.Auth.Api;
 [Route("api/auth")]
 public sealed class AuthController(ApplicationDbContext db) : ControllerBase
 {
-    private static readonly HashSet<string> Roles = ["admin", "teacher", "student"];
-
     [HttpGet("session/{id:int}")]
     public IActionResult GetSession(int id)
     {
@@ -38,7 +36,7 @@ public sealed class AuthController(ApplicationDbContext db) : ControllerBase
     {
         var fullName = request.FullName.Trim();
         var email = request.Email.Trim().ToLowerInvariant();
-        var role = request.Role.Trim().ToLowerInvariant();
+        var role = AuthRoles.PublicRegistrationRole;
 
         if (fullName.Length < 2)
         {
@@ -53,11 +51,6 @@ public sealed class AuthController(ApplicationDbContext db) : ControllerBase
         if (request.Password.Length < 8)
         {
             return BadRequest(new { error = "Password must be at least 8 characters." });
-        }
-
-        if (!Roles.Contains(role))
-        {
-            return BadRequest(new { error = "Choose a valid role." });
         }
 
         if (db.Users.Any(item => item.Email == email))

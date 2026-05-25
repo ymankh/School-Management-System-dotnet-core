@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using SchoolSystemTask.Modules.Auth.Domain;
 using SchoolSystemTask.Modules.Exams.Domain;
+using SchoolSystemTask.Modules.School.Domain;
 
 namespace SchoolSystemTask.Data;
 
@@ -21,6 +22,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<AttemptQuestion> AttemptQuestions => Set<AttemptQuestion>();
     public DbSet<StudentAnswer> StudentAnswers => Set<StudentAnswer>();
     public DbSet<QuestionBankItem> QuestionBankItems => Set<QuestionBankItem>();
+    public DbSet<Subject> Subjects => Set<Subject>();
+    public DbSet<SchoolClass> SchoolClasses => Set<SchoolClass>();
+    public DbSet<ClassSubject> ClassSubjects => Set<ClassSubject>();
+    public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+    public DbSet<TeacherProfile> TeacherProfiles => Set<TeacherProfile>();
+    public DbSet<ParentProfile> ParentProfiles => Set<ParentProfile>();
+    public DbSet<StudentClassEnrollment> StudentClassEnrollments => Set<StudentClassEnrollment>();
+    public DbSet<TeacherClassAssignment> TeacherClassAssignments => Set<TeacherClassAssignment>();
+    public DbSet<ParentStudentLink> ParentStudentLinks => Set<ParentStudentLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -103,6 +113,98 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.HasKey(item => item.Id);
             entity.HasOne(item => item.Question).WithMany().OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Subject>(entity =>
+        {
+            entity.HasKey(subject => subject.Id);
+            entity.HasIndex(subject => subject.Code).IsUnique();
+            entity.HasIndex(subject => subject.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<SchoolClass>(entity =>
+        {
+            entity.HasKey(schoolClass => schoolClass.Id);
+            entity.HasIndex(schoolClass => new { schoolClass.Name, schoolClass.AcademicYear }).IsUnique();
+        });
+
+        modelBuilder.Entity<ClassSubject>(entity =>
+        {
+            entity.HasKey(classSubject => classSubject.Id);
+            entity.HasIndex(classSubject => new { classSubject.SchoolClassId, classSubject.SubjectId }).IsUnique();
+            entity.HasOne(classSubject => classSubject.SchoolClass)
+                .WithMany(schoolClass => schoolClass.ClassSubjects)
+                .HasForeignKey(classSubject => classSubject.SchoolClassId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(classSubject => classSubject.Subject)
+                .WithMany(subject => subject.ClassSubjects)
+                .HasForeignKey(classSubject => classSubject.SubjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StudentProfile>(entity =>
+        {
+            entity.HasKey(profile => profile.Id);
+            entity.HasIndex(profile => profile.UserId).IsUnique();
+            entity.HasIndex(profile => profile.StudentNumber).IsUnique();
+            entity.HasOne(profile => profile.User).WithMany().HasForeignKey(profile => profile.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TeacherProfile>(entity =>
+        {
+            entity.HasKey(profile => profile.Id);
+            entity.HasIndex(profile => profile.UserId).IsUnique();
+            entity.HasIndex(profile => profile.EmployeeNumber).IsUnique();
+            entity.HasOne(profile => profile.User).WithMany().HasForeignKey(profile => profile.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ParentProfile>(entity =>
+        {
+            entity.HasKey(profile => profile.Id);
+            entity.HasIndex(profile => profile.UserId).IsUnique();
+            entity.HasOne(profile => profile.User).WithMany().HasForeignKey(profile => profile.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StudentClassEnrollment>(entity =>
+        {
+            entity.HasKey(enrollment => enrollment.Id);
+            entity.HasIndex(enrollment => new { enrollment.StudentProfileId, enrollment.AcademicYear }).IsUnique();
+            entity.HasOne(enrollment => enrollment.StudentProfile)
+                .WithMany(profile => profile.Enrollments)
+                .HasForeignKey(enrollment => enrollment.StudentProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(enrollment => enrollment.SchoolClass)
+                .WithMany(schoolClass => schoolClass.Enrollments)
+                .HasForeignKey(enrollment => enrollment.SchoolClassId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TeacherClassAssignment>(entity =>
+        {
+            entity.HasKey(assignment => assignment.Id);
+            entity.HasIndex(assignment => new { assignment.TeacherProfileId, assignment.ClassSubjectId }).IsUnique();
+            entity.HasOne(assignment => assignment.TeacherProfile)
+                .WithMany(profile => profile.Assignments)
+                .HasForeignKey(assignment => assignment.TeacherProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(assignment => assignment.ClassSubject)
+                .WithMany(classSubject => classSubject.TeacherAssignments)
+                .HasForeignKey(assignment => assignment.ClassSubjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ParentStudentLink>(entity =>
+        {
+            entity.HasKey(link => link.Id);
+            entity.HasIndex(link => new { link.ParentProfileId, link.StudentProfileId }).IsUnique();
+            entity.HasOne(link => link.ParentProfile)
+                .WithMany(profile => profile.StudentLinks)
+                .HasForeignKey(link => link.ParentProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(link => link.StudentProfile)
+                .WithMany(profile => profile.ParentLinks)
+                .HasForeignKey(link => link.StudentProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

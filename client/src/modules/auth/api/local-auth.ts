@@ -1,6 +1,6 @@
 import axios from "axios"
 
-export type AuthRole = "admin" | "teacher" | "student"
+export type AuthRole = "admin" | "principal" | "teacher" | "student" | "parent"
 
 export type AuthUser = {
   id: string
@@ -14,7 +14,6 @@ export type RegisterPayload = {
   fullName: string
   email: string
   password: string
-  role: AuthRole
 }
 
 export type LoginPayload = {

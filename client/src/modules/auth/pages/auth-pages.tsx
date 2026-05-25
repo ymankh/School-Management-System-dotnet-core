@@ -1,13 +1,12 @@
 import { useState, type FormEvent, type ReactNode } from "react"
 import { ArrowRight, BookOpenCheck, GraduationCap, LockKeyhole, Mail, UserRound } from "lucide-react"
 
-import { loginAccount, registerAccount, type AuthRole, type AuthUser } from "@/modules/auth/api/local-auth"
+import { loginAccount, registerAccount, type AuthUser } from "@/modules/auth/api/local-auth"
 import heroImage from "@/assets/images/education-dashboard-hero.png"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card"
 import { Input } from "@/shared/components/ui/input"
 import { Label } from "@/shared/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
 
 type AuthPageProps = {
   onAuthenticated: (user: AuthUser) => void
@@ -18,12 +17,6 @@ type AuthShellProps = {
   eyebrow: string
   title: string
   description: string
-}
-
-const roleLabels: Record<AuthRole, string> = {
-  admin: "Administrator",
-  teacher: "Teacher",
-  student: "Student",
 }
 
 function AuthShell({ children, eyebrow, title, description }: AuthShellProps) {
@@ -187,7 +180,6 @@ function RegisterPage({ onAuthenticated }: AuthPageProps) {
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<AuthRole>("student")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
 
@@ -197,7 +189,7 @@ function RegisterPage({ onAuthenticated }: AuthPageProps) {
     setIsSubmitting(true)
 
     try {
-      onAuthenticated(await registerAccount({ fullName, email, password, role }))
+      onAuthenticated(await registerAccount({ fullName, email, password }))
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Unable to register.")
     } finally {
@@ -214,7 +206,7 @@ function RegisterPage({ onAuthenticated }: AuthPageProps) {
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle>Profile details</CardTitle>
-          <CardDescription>Choose the role that matches how you want to explore the system.</CardDescription>
+          <CardDescription>Public registration creates a student account. Admin role assignment is managed separately.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -272,20 +264,6 @@ function RegisterPage({ onAuthenticated }: AuthPageProps) {
                   value={password}
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="register-role">Role</Label>
-              <Select onValueChange={(value) => setRole(value as AuthRole)} value={role}>
-                <SelectTrigger className="w-full" id="register-role">
-                  <SelectValue aria-label={roleLabels[role]}>{roleLabels[role]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             {error && (

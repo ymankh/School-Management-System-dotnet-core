@@ -1,4 +1,4 @@
-export type MainView = "teacher" | "student" | "admin"
+export type MainView = "teacher" | "student"
 
 export type TeacherPanel = "dashboard" | "builder" | "bank" | "grading"
 
