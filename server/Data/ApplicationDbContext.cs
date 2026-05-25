@@ -1,12 +1,14 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
+using SchoolSystemTask.Modules.Auth.Domain;
 using SchoolSystemTask.Modules.Exams.Domain;
 
 namespace SchoolSystemTask.Data;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
+    public DbSet<AuthUser> Users => Set<AuthUser>();
     public DbSet<Exam> Exams => Set<Exam>();
     public DbSet<QuestionGroup> QuestionGroups => Set<QuestionGroup>();
     public DbSet<ExamQuestion> ExamQuestions => Set<ExamQuestion>();
@@ -23,6 +25,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<AuthUser>(entity =>
+        {
+            entity.HasKey(user => user.Id);
+            entity.HasIndex(user => user.Email).IsUnique();
+        });
 
         modelBuilder.Entity<Exam>(entity =>
         {

@@ -1,11 +1,15 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using SchoolSystemTask.Data;
 
 #nullable disable
 
 namespace SchoolSystemTask.Migrations;
 
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20260525003753_AddExamEngineTables")]
 public partial class AddExamEngineTables : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

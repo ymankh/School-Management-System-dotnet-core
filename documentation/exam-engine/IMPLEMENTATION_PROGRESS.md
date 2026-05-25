@@ -31,7 +31,7 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
 | Results | Published marks only, score, feedback, breakdown | Partial | Results exist; visibility and feedback completeness need review. |
 | Randomization | Freeze delivered order and option order per attempt | Partial | EF-backed store builds and persists attempt order; tests need expansion. |
 | Grading | Auto/manual grading and mark publishing | Partial | Store grading exists; edge-case tests need expansion. |
-| Frontend architecture | Thin pages, module components, module utilities/types | Partial | `ExamEnginePage` is now orchestration-only; teacher/student/shared UI and helpers are split into module folders. More granular builder subcomponents may still be useful as the builder grows. |
+| Frontend architecture | Thin pages, module components, module utilities/types | Partial | `ExamPortalPage` is now orchestration-only; teacher/student/shared UI and helpers are split into module folders. More granular builder subcomponents may still be useful as the builder grows. |
 
 ## Completed Feature Slices
 
@@ -51,7 +51,7 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
   - Made file answer upload validation use the question's DB-backed `FileUploadRule`.
   - Removed hardcoded result feedback/time text and now renders attempt timestamps plus stored answer feedback.
 - 2026-05-25: Split the massive exam-engine page into module-owned frontend files.
-  - Reduced `client/src/modules/exam-engine/pages/exam-engine-page.tsx` from 2137 lines to 342 lines.
+  - Reduced `client/src/modules/exam-engine/pages/exam-portal-page.tsx` from 2137 lines to 342 lines.
   - Moved teacher dashboard, builder, question bank, grading, and subject-skill UI into `components/teacher-portal.tsx`.
   - Moved student exam list, player, answer inputs, review, and results into `components/student-portal.tsx`.
   - Moved shared UI primitives into `components/exam-engine-shared.tsx`.

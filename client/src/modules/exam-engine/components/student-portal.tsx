@@ -42,7 +42,7 @@ import type {
   ExamSummary,
   StudentAnswer,
 } from "@/modules/exam-engine/types/exam-engine.types"
-import type { StudentPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
+import type { StudentPage, StudentPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 import { durationMinutes, formatDate, formatRemainingTime, formatTime } from "@/modules/exam-engine/utils/exam-engine-formatters"
 import {
   getMatchPairs,
@@ -67,12 +67,14 @@ export function StudentPortal({
   activeExam,
   answers,
   attempt,
+  canEditStudentId = true,
   onSaveAnswer,
   onSelectQuestion,
   onShowResults,
   onStartExam,
   onSubmitAttempt,
   onUploadFile,
+  page,
   panel,
   questions,
   selectedQuestion,
@@ -84,12 +86,14 @@ export function StudentPortal({
   activeExam: Exam | null
   answers: Record<number, StudentAnswer>
   attempt: ExamAttempt | null
+  canEditStudentId?: boolean
   onSaveAnswer: (questionId: number, answerJson: string, flaggedForReview?: boolean) => Promise<void>
   onSelectQuestion: (questionId: number) => void
   onShowResults: (examId: number) => Promise<void>
   onStartExam: (examId: number) => Promise<void>
   onSubmitAttempt: () => Promise<void>
   onUploadFile: (questionId: number, file: File) => Promise<void>
+  page: StudentPage
   panel: StudentPanel
   questions: ExamQuestion[]
   selectedQuestion?: ExamQuestion
@@ -98,45 +102,141 @@ export function StudentPortal({
   studentIdInput: string
   studentExams: ExamSummary[]
 }) {
+  if (panel !== "list") {
+    return (
+      <div className="flex-1 overflow-auto p-4 lg:p-6">
+        {panel === "player" && activeExam && selectedQuestion && (
+          <ExamPlayer
+            attempt={attempt}
+            answers={answers}
+            exam={activeExam}
+            onSaveAnswer={onSaveAnswer}
+            onSelectQuestion={onSelectQuestion}
+            onShowReview={() => setPanel("review")}
+            onUploadFile={onUploadFile}
+            questions={questions}
+            selectedQuestion={selectedQuestion}
+          />
+        )}
+        {panel === "review" && activeExam && (
+          <ReviewSubmit attempt={attempt} answers={answers} onContinue={() => setPanel("player")} onSubmit={onSubmitAttempt} questions={questions} />
+        )}
+        {panel === "results" && activeExam && <ResultsFeedback answers={answers} attempt={attempt} exam={activeExam} questions={questions} />}
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 overflow-auto p-4 lg:p-6">
-      {panel === "list" && (
+      {page === "dashboard" && <StudentOverview exams={studentExams} />}
+      {page === "exams" && (
         <StudentExamList
           exams={studentExams}
+          canEditStudentId={canEditStudentId}
           onShowResults={onShowResults}
           onStartExam={onStartExam}
           setStudentIdInput={setStudentIdInput}
           studentIdInput={studentIdInput}
         />
       )}
-      {panel === "player" && activeExam && selectedQuestion && (
-        <ExamPlayer
-          attempt={attempt}
-          answers={answers}
-          exam={activeExam}
-          onSaveAnswer={onSaveAnswer}
-          onSelectQuestion={onSelectQuestion}
-          onShowReview={() => setPanel("review")}
-          onUploadFile={onUploadFile}
-          questions={questions}
-          selectedQuestion={selectedQuestion}
-        />
-      )}
-      {panel === "review" && activeExam && (
-        <ReviewSubmit attempt={attempt} answers={answers} onContinue={() => setPanel("player")} onSubmit={onSubmitAttempt} questions={questions} />
-      )}
-      {panel === "results" && activeExam && <ResultsFeedback answers={answers} attempt={attempt} exam={activeExam} questions={questions} />}
+      {page === "schedule" && <StudentSchedule exams={studentExams} />}
+      {page === "homework" && <ReadOnlyStudentPage title="Homework" emptyText="No homework records are available." />}
+      {page === "messages" && <ReadOnlyStudentPage title="Messages" emptyText="No messages are available." />}
+      {page === "profile" && <ReadOnlyStudentPage title="Profile" emptyText="Profile details will appear here." />}
+      {page === "settings" && <ReadOnlyStudentPage title="Settings" emptyText="Student settings will appear here." />}
     </div>
   )
 }
 
+function StudentOverview({ exams }: { exams: ExamSummary[] }) {
+  const activeExams = exams.filter((exam) => exam.status === "Active")
+  const scheduledExams = exams.filter((exam) => exam.status === "Scheduled")
+  const completedExams = exams.filter((exam) => exam.status === "Completed")
+  const nextExam = [...activeExams, ...scheduledExams].sort(
+    (left, right) => new Date(left.startAtUtc).getTime() - new Date(right.startAtUtc).getTime(),
+  )[0]
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 lg:grid-cols-4">
+        <MetricCard label="Active Exams" value={activeExams.length} />
+        <MetricCard label="Upcoming" value={scheduledExams.length} />
+        <MetricCard label="Completed" value={completedExams.length} />
+        <MetricCard label="Assigned" value={exams.length} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Next Exam</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {nextExam ? (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="font-medium">{nextExam.title}</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {nextExam.subject} • {formatDate(nextExam.startAtUtc)} • {durationMinutes(nextExam.startAtUtc, nextExam.endAtUtc)} min
+                </div>
+              </div>
+              <StatusBadge status={nextExam.status} />
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No active or upcoming exams.</div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function StudentSchedule({ exams }: { exams: ExamSummary[] }) {
+  const scheduledExams = exams
+    .filter((exam) => exam.status === "Scheduled" || exam.status === "Active")
+    .sort((left, right) => new Date(left.startAtUtc).getTime() - new Date(right.startAtUtc).getTime())
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Schedule</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {scheduledExams.length === 0 && <div className="text-sm text-muted-foreground">No scheduled exams are available.</div>}
+        {scheduledExams.map((exam) => (
+          <div key={`schedule-${exam.id}`} className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="font-medium">{exam.title}</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {exam.subject} • {formatDate(exam.startAtUtc)} • {formatTime(exam.startAtUtc)}
+              </div>
+            </div>
+            <StatusBadge status={exam.status} />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ReadOnlyStudentPage({ emptyText, title }: { emptyText: string; title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">{emptyText}</CardContent>
+    </Card>
+  )
+}
+
 function StudentExamList({
+  canEditStudentId,
   exams,
   onShowResults,
   onStartExam,
   setStudentIdInput,
   studentIdInput,
 }: {
+  canEditStudentId: boolean
   exams: ExamSummary[]
   onShowResults: (examId: number) => Promise<void>
   onStartExam: (examId: number) => Promise<void>
@@ -171,13 +271,15 @@ function StudentExamList({
             </Button>
           ))}
         </div>
-        <Input
-          className="w-full lg:w-56"
-          inputMode="numeric"
-          placeholder="Student ID"
-          value={studentIdInput}
-          onChange={(event) => setStudentIdInput(event.target.value)}
-        />
+        {canEditStudentId && (
+          <Input
+            className="w-full lg:w-56"
+            inputMode="numeric"
+            placeholder="Student ID"
+            value={studentIdInput}
+            onChange={(event) => setStudentIdInput(event.target.value)}
+          />
+        )}
       </div>
       <Card>
         <CardContent className="grid gap-3 py-4 lg:grid-cols-3">

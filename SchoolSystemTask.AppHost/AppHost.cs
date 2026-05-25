@@ -1,6 +1,12 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var api = builder.AddProject("api", "../server/SchoolSystemTask.csproj", launchProfileName: "http");
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume()
+    .AddDatabase("DefaultConnection", "school_system");
+
+var api = builder.AddProject("api", "../server/SchoolSystemTask.csproj", launchProfileName: "http")
+    .WithReference(postgres)
+    .WaitFor(postgres);
 
 builder.AddExecutable(
         "client",

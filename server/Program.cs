@@ -79,7 +79,8 @@ public class Program
         builder.Services.AddScoped<ExamEngineStore>();
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
-            if (builder.Environment.IsDevelopment())
+            if (connectionString.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase) ||
+                connectionString.StartsWith("Filename=", StringComparison.OrdinalIgnoreCase))
             {
                 options.UseSqlite(connectionString);
             }

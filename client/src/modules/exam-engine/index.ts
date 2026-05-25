@@ -1,1 +1,1 @@
-export { ExamEnginePage } from "./pages/exam-engine-page"
+export { ExamPortalPage } from "./pages/exam-portal-page"
