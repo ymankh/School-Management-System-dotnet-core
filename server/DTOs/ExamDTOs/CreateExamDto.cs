@@ -8,7 +8,7 @@ public class CreateExamDto
     public int MaxMark { get; set; }
 
     public DateTime ExamStartDate { get; set; }
-    public string Details { get; set; } // Exam details (Material and other things)
+    public string Details { get; set; } = string.Empty; // Exam details (Material and other things)
 
     // Exam duration
     public TimeSpan ExamDuration { get; set; }
@@ -16,6 +16,6 @@ public class CreateExamDto
 
     public bool MarkPublished { get; set; }
 
-    public string ExamType { get; set; } // Not Null
+    public string ExamType { get; set; } = string.Empty; // Not Null
 
 }

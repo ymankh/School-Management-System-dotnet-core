@@ -12,7 +12,7 @@ function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
-        <a className="flex items-center gap-2 font-semibold tracking-normal" href="#">
+        <a className="flex items-center gap-2 font-semibold tracking-normal" href="/">
           <GraduationCap className="size-5 text-primary" aria-hidden="true" />
           EduManager
         </a>
@@ -33,10 +33,12 @@ function SiteHeader() {
         </NavigationMenu>
 
         <div className="flex items-center gap-2">
-          <Button className="hidden text-primary sm:inline-flex" variant="ghost">
-            Log In
+          <Button asChild className="hidden text-primary sm:inline-flex" variant="ghost">
+            <a href="/login">Log In</a>
           </Button>
-          <Button className="px-4">Get Started</Button>
+          <Button asChild className="px-4">
+            <a href="/register">Get Started</a>
+          </Button>
         </div>
       </div>
     </header>

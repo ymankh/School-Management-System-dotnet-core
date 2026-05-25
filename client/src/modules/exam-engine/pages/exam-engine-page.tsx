@@ -34,14 +34,19 @@ import { getAttemptQuestions, getExamQuestions } from "@/modules/exam-engine/uti
 import { Button } from "@/shared/components/ui/button"
 import { ErrorBoundary } from "@/shared/components/error-boundary"
 
-function ExamEnginePage() {
-  const [mainView, setMainView] = useState<MainView>("teacher")
+type ExamEnginePageProps = {
+  initialStudentId?: number
+  initialView?: MainView
+}
+
+function ExamEnginePage({ initialStudentId, initialView = "teacher" }: ExamEnginePageProps) {
+  const [mainView, setMainView] = useState<MainView>(initialView)
   const [teacherPanel, setTeacherPanel] = useState<TeacherPanel>("dashboard")
   const [studentPanel, setStudentPanel] = useState<StudentPanel>("list")
   const [activeExamOverride, setActiveExamOverride] = useState<Exam | null>(null)
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null)
   const [answers, setAnswers] = useState<Record<number, StudentAnswer>>({})
-  const [studentIdInput, setStudentIdInput] = useState("")
+  const [studentIdInput, setStudentIdInput] = useState(initialStudentId?.toString() ?? "")
   const [teacherNotice, setTeacherNotice] = useState<string | null>(null)
   const [dashboardFilters, setDashboardFilters] = useState<Required<ExamDashboardFilters>>({
     className: "all",

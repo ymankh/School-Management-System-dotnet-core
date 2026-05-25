@@ -105,7 +105,7 @@ internal static class JsonListPropertyBuilderExtensions
     {
         propertyBuilder.HasConversion(
             values => JsonSerializer.Serialize(values, (JsonSerializerOptions?)null),
-            json => JsonSerializer.Deserialize<List<T>>(json, (JsonSerializerOptions?)null) ?? []);
+            json => JsonSerializer.Deserialize<List<T>>(json, (JsonSerializerOptions?)null) ?? new List<T>());
 
         propertyBuilder.Metadata.SetValueComparer(new ValueComparer<List<T>>(
             (left, right) => left != null && right != null && left.SequenceEqual(right),

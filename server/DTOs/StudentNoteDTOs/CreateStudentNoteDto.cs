@@ -2,7 +2,7 @@
 
 public class CreateStudentNoteDto
 {
-    public string Note { get; set; } // Not Null
+    public string Note { get; set; } = string.Empty; // Not Null
 
     public int NoteTypeId { get; set; } // Foreign Key
 
