@@ -39,6 +39,39 @@ async function request<T>(path: string, config?: AxiosRequestConfig): Promise<T>
   }
 }
 
+function normalizeExam(exam: Exam): Exam {
+  return {
+    ...exam,
+    groups: Array.isArray(exam.groups)
+      ? exam.groups.map((group) => ({
+          ...group,
+          questions: Array.isArray(group.questions)
+            ? group.questions.map(normalizeQuestion)
+            : [],
+        }))
+      : [],
+  }
+}
+
+function normalizeQuestion<T extends QuestionBankItem["question"]>(question: T): T {
+  return {
+    ...question,
+    acceptedAnswers: Array.isArray(question.acceptedAnswers) ? question.acceptedAnswers : [],
+    matchPairs: Array.isArray(question.matchPairs) ? question.matchPairs : [],
+    options: Array.isArray(question.options) ? question.options : [],
+    orderingItems: Array.isArray(question.orderingItems) ? question.orderingItems : [],
+    tags: Array.isArray(question.tags) ? question.tags : [],
+  }
+}
+
+function normalizeAttempt(attempt: ExamAttempt): ExamAttempt {
+  return {
+    ...attempt,
+    answers: Array.isArray(attempt.answers) ? attempt.answers : [],
+    questions: Array.isArray(attempt.questions) ? attempt.questions : [],
+  }
+}
+
 export async function getExamDashboard(filters: ExamDashboardFilters = {}) {
   const params = new URLSearchParams()
   Object.entries(filters).forEach(([key, value]) => {
@@ -47,27 +80,33 @@ export async function getExamDashboard(filters: ExamDashboardFilters = {}) {
     }
   })
   const query = params.toString()
-  return request<ExamDashboard>(`/exams${query ? `?${query}` : ""}`)
+  const dashboard = await request<ExamDashboard>(`/exams${query ? `?${query}` : ""}`)
+  return { ...dashboard, exams: Array.isArray(dashboard.exams) ? dashboard.exams : [] }
 }
 
 export async function getStudentExams(studentId: number) {
-  return request<ExamSummary[]>(`/students/${studentId}/exams`)
+  const exams = await request<ExamSummary[]>(`/students/${studentId}/exams`)
+  return Array.isArray(exams) ? exams : []
 }
 
 export async function getExam(id: number) {
-  return request<Exam>(`/exams/${id}`)
+  return normalizeExam(await request<Exam>(`/exams/${id}`))
 }
 
 export async function getStudentExamAttempt(studentId: number, examId: number) {
-  return request<ExamAttempt>(`/students/${studentId}/exams/${examId}/attempt`)
+  return normalizeAttempt(await request<ExamAttempt>(`/students/${studentId}/exams/${examId}/attempt`))
 }
 
 export async function getQuestionBank() {
-  return request<QuestionBankItem[]>("/question-bank")
+  const items = await request<QuestionBankItem[]>("/question-bank")
+  return Array.isArray(items)
+    ? items.map((item) => ({ ...item, question: normalizeQuestion(item.question) }))
+    : []
 }
 
 export async function getSubjectSkills(classSubjectId: number) {
-  return request<SubjectSkill[]>(`/class-subjects/${classSubjectId}/skills`)
+  const skills = await request<SubjectSkill[]>(`/class-subjects/${classSubjectId}/skills`)
+  return Array.isArray(skills) ? skills : []
 }
 
 export async function createSubjectSkill(payload: {
@@ -84,10 +123,10 @@ export async function createSubjectSkill(payload: {
 }
 
 export async function startAttempt(examId: number, studentId: number) {
-  return request<ExamAttempt>(`/exams/${examId}/attempts`, {
+  return normalizeAttempt(await request<ExamAttempt>(`/exams/${examId}/attempts`, {
     method: "POST",
     data: { studentId },
-  })
+  }))
 }
 
 export async function saveAnswer(attemptId: number, questionId: number, answerJson: string, flaggedForReview: boolean) {
@@ -118,7 +157,7 @@ export async function uploadExamAttachment(examId: number, file: File) {
 }
 
 export async function updateExam(exam: Exam) {
-  return request<Exam>(`/exams/${exam.id}`, {
+  return normalizeExam(await request<Exam>(`/exams/${exam.id}`, {
     method: "PUT",
     data: {
       title: exam.title,
@@ -134,7 +173,7 @@ export async function updateExam(exam: Exam) {
       studyMaterialsMarkdown: exam.studyMaterialsMarkdown,
       groups: exam.groups,
     },
-  })
+  }))
 }
 
 export async function addQuestionGroup(
@@ -160,28 +199,29 @@ export async function importQuestionsFromBank(examId: number, groupId: number, q
   })
 }
 
-export async function submitAttempt(attemptId: number) {
-  return request<ExamAttempt>(`/attempts/${attemptId}/submit`, { method: "POST" })
+export async function submitAttempt(attemptId: number, expired = false) {
+  return normalizeAttempt(await request<ExamAttempt>(`/attempts/${attemptId}/submit${expired ? "?expired=true" : ""}`, { method: "POST" }))
 }
 
 export async function publishExam(examId: number) {
-  return request<Exam>(`/exams/${examId}/publish`, { method: "POST" })
+  return normalizeExam(await request<Exam>(`/exams/${examId}/publish`, { method: "POST" }))
 }
 
 export async function duplicateExam(examId: number) {
-  return request<Exam>(`/exams/${examId}/duplicate`, { method: "POST" })
+  return normalizeExam(await request<Exam>(`/exams/${examId}/duplicate`, { method: "POST" }))
 }
 
 export async function archiveExam(examId: number) {
-  return request<Exam>(`/exams/${examId}/archive`, { method: "POST" })
+  return normalizeExam(await request<Exam>(`/exams/${examId}/archive`, { method: "POST" }))
 }
 
 export async function publishMarks(examId: number) {
-  return request<Exam>(`/exams/${examId}/publish-marks`, { method: "POST" })
+  return normalizeExam(await request<Exam>(`/exams/${examId}/publish-marks`, { method: "POST" }))
 }
 
 export async function getGradingAnswers(examId: number) {
-  return request<StudentAnswer[]>(`/exams/${examId}/grading`)
+  const answers = await request<StudentAnswer[]>(`/exams/${examId}/grading`)
+  return Array.isArray(answers) ? answers : []
 }
 
 export async function gradeAnswer(answerId: number, awardedMark: number, teacherFeedback: string) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { looksLikeMath, normalizeMathMarkdown } from "@/modules/exam-engine/components/markdown-content"
+import { looksLikeMath, normalizeMathMarkdown } from "@/modules/exam-engine/utils/markdown-math"
 
 describe("normalizeMathMarkdown", () => {
   it("unwraps inline dollar math from markdown code ticks", () => {

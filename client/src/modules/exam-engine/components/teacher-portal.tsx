@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Archive,
@@ -65,6 +65,28 @@ const questionTypes: QuestionType[] = [
   "FillInTheBlank",
 ]
 
+type UploadedAttachment = {
+  fileName: string
+  contentType: string
+  sizeBytes: number
+  url: string
+  uploadedAtUtc: string
+}
+
+function toDatetimeLocal(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ""
+  }
+
+  const offsetMs = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
+}
+
+function fromDatetimeLocal(value: string) {
+  return value ? new Date(value).toISOString() : new Date().toISOString()
+}
+
 export function TeacherPortal({
   activeExam,
   archiveExam,
@@ -98,7 +120,7 @@ export function TeacherPortal({
   setDashboardFilters: (filters: Required<ExamDashboardFilters>) => void
   setPanel: (panel: TeacherPanel) => void
   updateExam: (exam: Exam) => void
-  uploadAttachment: (examId: number, file: File) => void
+  uploadAttachment: (examId: number, file: File) => Promise<UploadedAttachment>
 }) {
   return (
     <div className="flex-1 overflow-auto p-4 lg:p-6">
@@ -142,6 +164,7 @@ export function TeacherPortal({
       )}
       {panel === "builder" && activeExam && (
         <ExamBuilder
+          key={activeExam.id}
           exam={activeExam}
           importFromBank={importFromBank}
           publishExam={publishExam}
@@ -348,12 +371,18 @@ function ExamBuilder({
   isPublishing?: boolean
   questionBank: QuestionBankItem[]
   updateExam: (exam: Exam) => void
-  uploadAttachment: (examId: number, file: File) => void
+  uploadAttachment: (examId: number, file: File) => Promise<UploadedAttachment>
 }) {
-  const groups = useMemo(() => getExamGroups(exam), [exam.groups])
+  const [editableExam, setEditableExam] = useState<Exam>(() => exam)
   const [editableGroups, setEditableGroups] = useState<QuestionGroup[]>(() => getExamGroups(exam))
   const [selectedBankItems, setSelectedBankItems] = useState<number[]>([])
+  const [bankSearch, setBankSearch] = useState("")
+  const [bankTypeFilter, setBankTypeFilter] = useState<QuestionType | "all">("all")
+  const [bankDifficultyFilter, setBankDifficultyFilter] = useState("all")
+  const [targetGroupId, setTargetGroupId] = useState<number | null>(() => getExamGroups(exam)[0]?.id ?? null)
   const [attachment, setAttachment] = useState<File | null>(null)
+  const [uploadedAttachment, setUploadedAttachment] = useState<UploadedAttachment | null>(null)
+  const [attachmentUploadError, setAttachmentUploadError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const subjectSkillsQuery = useQuery({
     queryKey: ["subject-skills", exam.classSubjectId],
@@ -367,9 +396,26 @@ function ExamBuilder({
   })
   const subjectSkills = subjectSkillsQuery.data ?? []
 
-  useEffect(() => {
-    setEditableGroups(groups)
-  }, [exam.id, groups])
+  const bankDifficultyOptions = useMemo(
+    () => uniqueSorted(questionBank.map((item) => item.question.difficulty).filter(Boolean)),
+    [questionBank],
+  )
+  const filteredQuestionBank = useMemo(() => {
+    const search = bankSearch.trim().toLowerCase()
+
+    return questionBank.filter((item) => {
+      const question = item.question
+      const matchesSearch =
+        search.length === 0 ||
+        `${item.subject} ${item.ownerName} ${question.type} ${question.difficulty} ${question.tags.join(" ")} ${question.bodyMarkdown}`
+          .toLowerCase()
+          .includes(search)
+      const matchesType = bankTypeFilter === "all" || question.type === bankTypeFilter
+      const matchesDifficulty = bankDifficultyFilter === "all" || question.difficulty === bankDifficultyFilter
+
+      return matchesSearch && matchesType && matchesDifficulty
+    })
+  }, [bankDifficultyFilter, bankSearch, bankTypeFilter, questionBank])
 
   const addSkill = () => {
     const name = window.prompt(`${exam.subject} skill name`)
@@ -428,6 +474,20 @@ function ExamBuilder({
     )
   }
 
+  const insertAttachmentIntoQuestion = (groupId: number, question: ExamQuestion) => {
+    if (!uploadedAttachment) {
+      return
+    }
+
+    const markdown = uploadedAttachment.contentType.startsWith("image/")
+      ? `![${uploadedAttachment.fileName}](${uploadedAttachment.url})`
+      : `[${uploadedAttachment.fileName}](${uploadedAttachment.url})`
+    const separator = question.bodyMarkdown.trim().length > 0 ? "\n\n" : ""
+    updateQuestionDraft(groupId, question.id, {
+      bodyMarkdown: `${question.bodyMarkdown}${separator}${markdown}`,
+    })
+  }
+
   return (
     <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
       <Card className="xl:sticky xl:top-20 xl:self-start">
@@ -482,7 +542,7 @@ function ExamBuilder({
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle>{exam.title}</CardTitle>
+              <CardTitle>{editableExam.title}</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">Step 1: content and questions • Step 2: settings • Step 3: review and publish</p>
             </div>
             <StatusBadge status={exam.status} />
@@ -495,7 +555,7 @@ function ExamBuilder({
                 <h3 className="font-medium">Questions</h3>
                 <p className="mt-1 text-sm text-muted-foreground">Edit every question for the exam from this page.</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => updateExam({ ...exam, groups: editableGroups })}><Save className="size-4" /> Save Draft</Button>
+              <Button variant="outline" size="sm" onClick={() => updateExam({ ...editableExam, groups: editableGroups })}><Save className="size-4" /> Save Draft</Button>
             </div>
 
             <div className="space-y-5">
@@ -547,7 +607,19 @@ function ExamBuilder({
 
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div>
-                            <div className="mb-2 text-sm font-medium">Markdown and LaTeX Editor</div>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">Markdown and LaTeX Editor</span>
+                              <Button
+                                disabled={!uploadedAttachment}
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                                onClick={() => insertAttachmentIntoQuestion(group.id, question)}
+                              >
+                                <Upload className="size-4" />
+                                Insert file
+                              </Button>
+                            </div>
                             <textarea
                               className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30"
                               value={question.bodyMarkdown}
@@ -566,6 +638,11 @@ function ExamBuilder({
                             </div>
                           </div>
                         </div>
+
+                        <QuestionAnswerKeyEditor
+                          question={question}
+                          updateQuestion={(patch) => updateQuestionDraft(group.id, question.id, patch)}
+                        />
                       </div>
                     ))}
 
@@ -587,18 +664,78 @@ function ExamBuilder({
           </section>
 
           <section className="rounded-md border p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-medium">Add From Question Bank</h3>
-              <Button
-                disabled={selectedBankItems.length === 0 || !editableGroups[0]}
-                size="sm"
-                onClick={() => editableGroups[0] && importFromBank(exam.id, editableGroups[0].id, selectedBankItems)}
-              >
-                <Database className="size-4" /> Add Selected ({selectedBankItems.length})
-              </Button>
+            <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h3 className="font-medium">Add From Question Bank</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Search reusable questions, select a target group, then import the selected items.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Select
+                  value={targetGroupId?.toString() ?? ""}
+                  onValueChange={(value) => setTargetGroupId(Number.parseInt(value, 10))}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Target group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editableGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id.toString()}>{group.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  disabled={selectedBankItems.length === 0 || !targetGroupId}
+                  size="sm"
+                  onClick={() => {
+                    if (!targetGroupId) {
+                      return
+                    }
+
+                    importFromBank(exam.id, targetGroupId, selectedBankItems)
+                    setSelectedBankItems([])
+                  }}
+                >
+                  <Database className="size-4" /> Add Selected ({selectedBankItems.length})
+                </Button>
+              </div>
             </div>
+
+            <div className="mb-3 grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  className="pl-8"
+                  placeholder="Search question text, tags, subject, or owner..."
+                  value={bankSearch}
+                  onChange={(event) => setBankSearch(event.target.value)}
+                />
+              </div>
+              <Select value={bankTypeFilter} onValueChange={(value) => setBankTypeFilter(value as QuestionType | "all")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  {questionTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={bankDifficultyFilter} onValueChange={setBankDifficultyFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All difficulties" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All difficulties</SelectItem>
+                  {bankDifficultyOptions.map((difficulty) => (
+                    <SelectItem key={difficulty} value={difficulty}>{difficulty}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid gap-3 md:grid-cols-2">
-              {questionBank.map((item) => (
+              {filteredQuestionBank.map((item) => (
                 <label key={item.id} className="flex gap-3 rounded-md border p-3 text-sm">
                   <input
                     checked={selectedBankItems.includes(item.id)}
@@ -611,10 +748,16 @@ function ExamBuilder({
                   />
                   <span>
                     <span className="block font-medium">{item.question.type} • {item.question.difficulty}</span>
+                    <span className="mb-1 block text-xs text-muted-foreground">{item.subject} • {item.ownerName}</span>
                     <span className="line-clamp-2 text-muted-foreground">{item.question.bodyMarkdown}</span>
                   </span>
                 </label>
               ))}
+              {filteredQuestionBank.length === 0 && (
+                <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground md:col-span-2">
+                  No bank questions match the current filters.
+                </div>
+              )}
             </div>
           </section>
 
@@ -633,12 +776,33 @@ function ExamBuilder({
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null
                   setAttachment(file)
+                  setAttachmentUploadError(null)
                   if (file) {
                     uploadAttachment(exam.id, file)
+                      .then((result) => setUploadedAttachment(result))
+                      .catch((error: unknown) => {
+                        setUploadedAttachment(null)
+                        setAttachmentUploadError(error instanceof Error ? error.message : "Attachment upload failed.")
+                      })
                   }
                 }}
               />
             </label>
+            {uploadedAttachment && (
+              <div className="mt-3 rounded-md border bg-muted/30 p-3 text-xs">
+                <div className="font-medium">Ready to insert</div>
+                <code className="mt-1 block overflow-x-auto rounded bg-background px-2 py-1">
+                  {uploadedAttachment.contentType.startsWith("image/")
+                    ? `![${uploadedAttachment.fileName}](${uploadedAttachment.url})`
+                    : `[${uploadedAttachment.fileName}](${uploadedAttachment.url})`}
+                </code>
+              </div>
+            )}
+            {attachmentUploadError && (
+              <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                {attachmentUploadError}
+              </div>
+            )}
           </section>
         </CardContent>
       </Card>
@@ -648,21 +812,359 @@ function ExamBuilder({
           <CardTitle>Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <SettingRow label="Mode" value={exam.mode} />
-          <SettingRow label="Date" value={formatDate(exam.startAtUtc)} />
-          <SettingRow label="Duration" value={`${durationMinutes(exam.startAtUtc, exam.endAtUtc)} minutes`} />
-          <SettingRow label="Total marks" value={String(exam.maxMark)} />
-          <SettingRow label="Shuffle groups" value={exam.shuffleGroups ? "Enabled" : "Disabled"} />
-          <SettingRow label="Focus mode" value={exam.focusModeEnabled ? "Enabled" : "Disabled"} />
+          <label className="block text-xs font-medium">
+            Title
+            <Input
+              className="mt-1"
+              value={editableExam.title}
+              onChange={(event) => setEditableExam((current) => ({ ...current, title: event.target.value }))}
+            />
+          </label>
+          <label className="block text-xs font-medium">
+            Mode
+            <Select
+              value={editableExam.mode}
+              onValueChange={(value) => setEditableExam((current) => ({ ...current, mode: value as Exam["mode"] }))}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Online">Online</SelectItem>
+                <SelectItem value="Paper">Paper</SelectItem>
+                <SelectItem value="Mixed">Mixed</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+          <label className="block text-xs font-medium">
+            Start time
+            <Input
+              className="mt-1"
+              type="datetime-local"
+              value={toDatetimeLocal(editableExam.startAtUtc)}
+              onChange={(event) => setEditableExam((current) => ({ ...current, startAtUtc: fromDatetimeLocal(event.target.value) }))}
+            />
+          </label>
+          <label className="block text-xs font-medium">
+            End time
+            <Input
+              className="mt-1"
+              type="datetime-local"
+              value={toDatetimeLocal(editableExam.endAtUtc)}
+              onChange={(event) => setEditableExam((current) => ({ ...current, endAtUtc: fromDatetimeLocal(event.target.value) }))}
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs font-medium">
+              Total marks
+              <Input
+                className="mt-1"
+                min={0}
+                type="number"
+                value={editableExam.maxMark}
+                onChange={(event) => setEditableExam((current) => ({ ...current, maxMark: Number.parseInt(event.target.value, 10) || 0 }))}
+              />
+            </label>
+            <label className="block text-xs font-medium">
+              Passing marks
+              <Input
+                className="mt-1"
+                min={0}
+                type="number"
+                value={editableExam.passingMark}
+                onChange={(event) => setEditableExam((current) => ({ ...current, passingMark: Number.parseInt(event.target.value, 10) || 0 }))}
+              />
+            </label>
+          </div>
+          <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
+            Visible to students
+            <input
+              checked={editableExam.isVisible}
+              type="checkbox"
+              onChange={(event) => setEditableExam((current) => ({ ...current, isVisible: event.target.checked }))}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
+            Shuffle groups
+            <input
+              checked={editableExam.shuffleGroups}
+              type="checkbox"
+              onChange={(event) => setEditableExam((current) => ({ ...current, shuffleGroups: event.target.checked }))}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
+            Focus mode
+            <input
+              checked={editableExam.focusModeEnabled}
+              type="checkbox"
+              onChange={(event) => setEditableExam((current) => ({ ...current, focusModeEnabled: event.target.checked }))}
+            />
+          </label>
+          <SettingRow label="Duration" value={`${durationMinutes(editableExam.startAtUtc, editableExam.endAtUtc)} minutes`} />
+          <SettingRow label="Date" value={formatDate(editableExam.startAtUtc)} />
           <div className="rounded-md border bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
             Publishing validates schedule, marks, group randomization, upload limits, and at least one question per visible group.
           </div>
+          <Button className="w-full" variant="outline" onClick={() => updateExam({ ...editableExam, groups: editableGroups })}>
+            <Save className="size-4" />
+            Save Settings
+          </Button>
           <Button className="w-full" disabled={isPublishing || exam.isPublished} onClick={() => publishExam(exam.id)}>
             <CheckCircle2 className="size-4" />
             {exam.isPublished ? "Published" : isPublishing ? "Publishing..." : "Publish Exam"}
           </Button>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function QuestionAnswerKeyEditor({
+  question,
+  updateQuestion,
+}: {
+  question: ExamQuestion
+  updateQuestion: (patch: Partial<ExamQuestion>) => void
+}) {
+  const updateOption = (optionId: number, patch: Partial<ExamQuestion["options"][number]>) => {
+    updateQuestion({
+      options: question.options.map((option) => (option.id === optionId ? { ...option, ...patch } : option)),
+    })
+  }
+
+  const addOption = () => {
+    const nextOrder = question.options.length + 1
+    updateQuestion({
+      options: [
+        ...question.options,
+        {
+          id: -Date.now(),
+          textMarkdown: `Option ${nextOrder}`,
+          isCorrect: false,
+          authoringOrder: nextOrder,
+        },
+      ],
+    })
+  }
+
+  const ensureTrueFalseOptions = (correctValue: "true" | "false") => {
+    updateQuestion({
+      options: [
+        { id: question.options[0]?.id ?? -Date.now(), textMarkdown: "True", isCorrect: correctValue === "true", authoringOrder: 1 },
+        { id: question.options[1]?.id ?? -(Date.now() + 1), textMarkdown: "False", isCorrect: correctValue === "false", authoringOrder: 2 },
+      ],
+    })
+  }
+
+  const updatePair = (pairId: number, patch: Partial<ExamQuestion["matchPairs"][number]>) => {
+    updateQuestion({
+      matchPairs: question.matchPairs.map((pair) => (pair.id === pairId ? { ...pair, ...patch } : pair)),
+    })
+  }
+
+  const addPair = () => {
+    const nextOrder = question.matchPairs.length + 1
+    updateQuestion({
+      matchPairs: [
+        ...question.matchPairs,
+        {
+          id: -Date.now(),
+          leftMarkdown: `Prompt ${nextOrder}`,
+          rightMarkdown: `Match ${nextOrder}`,
+          authoringOrder: nextOrder,
+        },
+      ],
+    })
+  }
+
+  return (
+    <div className="mt-4 rounded-md border bg-muted/20 p-3">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-sm font-medium">Answer Key And Grading</div>
+          <div className="text-xs text-muted-foreground">Configure the data used for auto-grading or manual review.</div>
+        </div>
+        <Select
+          value={question.difficulty}
+          onValueChange={(value) => updateQuestion({ difficulty: value })}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Easy">Easy</SelectItem>
+            <SelectItem value="Medium">Medium</SelectItem>
+            <SelectItem value="Hard">Hard</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="mb-3 grid gap-3 md:grid-cols-2">
+        <label className="text-xs font-medium">
+          Tags
+          <Input
+            className="mt-1"
+            placeholder="algebra, proofs, chapter-2"
+            value={question.tags.join(", ")}
+            onChange={(event) =>
+              updateQuestion({
+                tags: event.target.value
+                  .split(",")
+                  .map((tag) => tag.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </label>
+        <label className="text-xs font-medium">
+          Grading rule
+          <Input
+            className="mt-1"
+            value={question.gradingRule}
+            onChange={(event) => updateQuestion({ gradingRule: event.target.value })}
+          />
+        </label>
+      </div>
+
+      {question.type === "MultipleChoice" && (
+        <div className="space-y-2">
+          {question.options.map((option) => (
+            <div key={option.id} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <Input
+                value={option.textMarkdown}
+                onChange={(event) => updateOption(option.id, { textMarkdown: event.target.value })}
+              />
+              <label className="flex items-center gap-2 rounded-md border bg-background px-3 text-xs">
+                <input
+                  checked={option.isCorrect}
+                  type="checkbox"
+                  onChange={(event) => updateOption(option.id, { isCorrect: event.target.checked })}
+                />
+                Correct
+              </label>
+            </div>
+          ))}
+          <Button size="sm" type="button" variant="outline" onClick={addOption}>
+            <Plus className="size-4" />
+            Add option
+          </Button>
+        </div>
+      )}
+
+      {question.type === "TrueFalse" && (
+        <Select
+          value={question.options.find((option) => option.isCorrect)?.textMarkdown.toLowerCase() === "false" ? "false" : "true"}
+          onValueChange={(value) => ensureTrueFalseOptions(value as "true" | "false")}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="true">True is correct</SelectItem>
+            <SelectItem value="false">False is correct</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+
+      {(question.type === "ShortAnswer" || question.type === "FillInTheBlank") && (
+        <label className="text-xs font-medium">
+          Accepted answers
+          <textarea
+            className="mt-1 min-h-24 w-full rounded-md border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+            placeholder="One accepted answer per line"
+            value={question.acceptedAnswers.join("\n")}
+            onChange={(event) =>
+              updateQuestion({
+                acceptedAnswers: event.target.value
+                  .split("\n")
+                  .map((answer) => answer.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </label>
+      )}
+
+      {question.type === "Matching" && (
+        <div className="space-y-2">
+          {question.matchPairs.map((pair) => (
+            <div key={pair.id} className="grid gap-2 sm:grid-cols-2">
+              <Input value={pair.leftMarkdown} onChange={(event) => updatePair(pair.id, { leftMarkdown: event.target.value })} />
+              <Input value={pair.rightMarkdown} onChange={(event) => updatePair(pair.id, { rightMarkdown: event.target.value })} />
+            </div>
+          ))}
+          <Button size="sm" type="button" variant="outline" onClick={addPair}>
+            <Plus className="size-4" />
+            Add pair
+          </Button>
+        </div>
+      )}
+
+      {question.type === "Ordering" && (
+        <label className="text-xs font-medium">
+          Correct order
+          <textarea
+            className="mt-1 min-h-24 w-full rounded-md border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+            placeholder="One item per line in the correct order"
+            value={question.orderingItems.join("\n")}
+            onChange={(event) =>
+              updateQuestion({
+                orderingItems: event.target.value
+                  .split("\n")
+                  .map((item) => item.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        </label>
+      )}
+
+      {question.type === "FileUpload" && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-xs font-medium">
+            Accepted MIME types
+            <Input
+              className="mt-1"
+              placeholder="application/pdf, image/png"
+              value={question.fileUploadRule?.acceptedContentTypes.join(", ") ?? ""}
+              onChange={(event) =>
+                updateQuestion({
+                  fileUploadRule: {
+                    acceptedContentTypes: event.target.value
+                      .split(",")
+                      .map((type) => type.trim())
+                      .filter(Boolean),
+                    maxSizeBytes: question.fileUploadRule?.maxSizeBytes ?? 10_485_760,
+                  },
+                })
+              }
+            />
+          </label>
+          <label className="text-xs font-medium">
+            Max size bytes
+            <Input
+              className="mt-1"
+              min={1}
+              type="number"
+              value={question.fileUploadRule?.maxSizeBytes ?? 10_485_760}
+              onChange={(event) =>
+                updateQuestion({
+                  fileUploadRule: {
+                    acceptedContentTypes: question.fileUploadRule?.acceptedContentTypes ?? ["application/pdf"],
+                    maxSizeBytes: Number.parseInt(event.target.value, 10) || 10_485_760,
+                  },
+                })
+              }
+            />
+          </label>
+        </div>
+      )}
+
+      {question.type === "Article" && (
+        <div className="rounded-md border bg-background p-3 text-xs text-muted-foreground">
+          Article questions are manually graded. Use the grading rule field for rubric notes.
+        </div>
+      )}
     </div>
   )
 }

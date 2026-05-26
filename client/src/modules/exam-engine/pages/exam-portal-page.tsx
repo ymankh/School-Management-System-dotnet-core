@@ -63,8 +63,12 @@ import { TooltipProvider } from "@/shared/components/ui/tooltip"
 type ExamPortalPageProps = {
   currentUser?: AuthUser
   initialStudentId?: number
+  initialStudentPage?: StudentPage
+  initialTeacherPanel?: TeacherPanel
   initialView?: MainView
   onLogout?: () => void
+  onStudentPageChange?: (page: StudentPage) => void
+  onTeacherPanelChange?: (panel: TeacherPanel) => void
 }
 
 type DashboardShellProps = {
@@ -123,16 +127,28 @@ function getDefaultView(role?: AuthUser["role"], initialView: MainView = "teache
   return allowedViews.includes(initialView) ? initialView : allowedViews[0]
 }
 
-function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher", onLogout }: ExamPortalPageProps) {
+function ExamPortalPage({
+  currentUser,
+  initialStudentId,
+  initialStudentPage = "dashboard",
+  initialTeacherPanel = "dashboard",
+  initialView = "teacher",
+  onLogout,
+  onStudentPageChange,
+  onTeacherPanelChange,
+}: ExamPortalPageProps) {
+  const resolvedInitialStudentId =
+    initialStudentId ??
+    (currentUser?.role === "student" ? Number.parseInt(currentUser.id, 10) : undefined)
   const allowedViews = useMemo(() => getAllowedViews(currentUser?.role), [currentUser?.role])
   const [mainView, setMainView] = useState<MainView>(() => getDefaultView(currentUser?.role, initialView))
-  const [teacherPanel, setTeacherPanel] = useState<TeacherPanel>("dashboard")
+  const [teacherPanel, setTeacherPanel] = useState<TeacherPanel>(initialTeacherPanel)
   const [studentPanel, setStudentPanel] = useState<StudentPanel>("list")
-  const [studentPage, setStudentPage] = useState<StudentPage>("dashboard")
+  const [studentPage, setStudentPage] = useState<StudentPage>(initialStudentPage)
   const [activeExamOverride, setActiveExamOverride] = useState<Exam | null>(null)
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null)
   const [answers, setAnswers] = useState<Record<number, StudentAnswer>>({})
-  const [studentIdInput, setStudentIdInput] = useState(initialStudentId?.toString() ?? "")
+  const [studentIdInput, setStudentIdInput] = useState(resolvedInitialStudentId?.toString() ?? "")
   const [teacherNotice, setTeacherNotice] = useState<string | null>(null)
   const [dashboardFilters, setDashboardFilters] = useState<Required<ExamDashboardFilters>>({
     className: "all",
@@ -169,7 +185,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
     onSuccess: (attemptResult) => {
       setAttempt(attemptResult)
       setAnswers(Object.fromEntries(attemptResult.answers.map((answer) => [answer.questionId, answer])))
-      setSelectedQuestionId((current) => current ?? attemptResult.questions[0]?.questionId ?? null)
+      setSelectedQuestionId((current) => current ?? getAttemptQuestions(attemptResult)[0]?.questionId ?? null)
       if (canUseStudentPortal) {
         setMainView("student")
       }
@@ -208,7 +224,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
   })
 
   const submitAttemptMutation = useMutation({
-    mutationFn: submitAttempt,
+    mutationFn: ({ attemptId, expired = false }: { attemptId: number; expired?: boolean }) => submitAttempt(attemptId, expired),
     onSuccess: (submitted) => {
       setAttempt(submitted)
       setAnswers(Object.fromEntries(submitted.answers.map((answer) => [answer.questionId, answer])))
@@ -371,7 +387,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
 
     const examResult = await queryClient.fetchQuery({ queryKey: ["exam", examId], queryFn: () => getExam(examId) })
     setActiveExamOverride(examResult)
-    setTeacherPanel(panel)
+    handleTeacherPanelChange(panel)
   }
 
   async function handleSaveAnswer(questionId: number, answerJson: string, flaggedForReview = false) {
@@ -390,12 +406,22 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
     await uploadFileMutation.mutateAsync({ attemptId: attempt.id, file, questionId })
   }
 
-  async function handleSubmitAttempt() {
+  async function handleSubmitAttempt(expired = false) {
     if (!attempt) {
       return
     }
 
-    await submitAttemptMutation.mutateAsync(attempt.id)
+    await submitAttemptMutation.mutateAsync({ attemptId: attempt.id, expired })
+  }
+
+  function handleTeacherPanelChange(panel: TeacherPanel) {
+    setTeacherPanel(panel)
+    onTeacherPanelChange?.(panel)
+  }
+
+  function handleStudentPageChange(page: StudentPage) {
+    setStudentPage(page)
+    onStudentPageChange?.(page)
   }
 
   return (
@@ -407,7 +433,7 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
       onSelectStudentPage={(page) => {
         setMainView("student")
         setStudentPanel("list")
-        setStudentPage(page)
+        handleStudentPageChange(page)
       }}
       onSelectView={setMainView}
       studentPage={studentPage}
@@ -441,9 +467,9 @@ function ExamPortalPage({ currentUser, initialStudentId, initialView = "teacher"
             publishMarks={(examId) => publishMarksMutation.mutate(examId)}
             questionBank={questionBank}
             setDashboardFilters={setDashboardFilters}
-            setPanel={setTeacherPanel}
+            setPanel={handleTeacherPanelChange}
             updateExam={(exam) => updateExamMutation.mutate(exam)}
-            uploadAttachment={(examId, file) => uploadExamAttachmentMutation.mutate({ examId, file })}
+            uploadAttachment={(examId, file) => uploadExamAttachmentMutation.mutateAsync({ examId, file })}
           />
         ) : activeMainView === "student" && canUseStudentPortal ? (
           <StudentPortal

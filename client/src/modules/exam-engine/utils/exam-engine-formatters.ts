@@ -44,8 +44,8 @@ export function durationMinutes(start: string, end: string) {
   return Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000))
 }
 
-export function formatRemainingTime(end: string) {
-  const remainingMs = Math.max(0, new Date(end).getTime() - Date.now())
+export function formatRemainingTime(end: string, now = Date.now()) {
+  const remainingMs = Math.max(0, new Date(end).getTime() - now)
   const totalSeconds = Math.floor(remainingMs / 1000)
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)

@@ -4,6 +4,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 
+import { normalizeMathMarkdown } from "@/modules/exam-engine/utils/markdown-math"
 import { cn } from "@/shared/lib/utils"
 
 type MarkdownContentProps = {
@@ -71,31 +72,6 @@ const mathSchema = {
   },
 }
 
-function normalizeMathMarkdown(content: string) {
-  return content
-    .replace(/`(\$[^`\n]+\$)`/g, "$1")
-    .replace(/`\$([^`\n]+)`/g, (_match, value: string) => `$${value}$`)
-    .replace(/`(\\\([^`\n]+\\\))`/g, "$1")
-    .replace(/`(\\\[[\s\S]*?\\\])`/g, "$1")
-    .replace(/`([^`\n]+)`/g, (match, value: string) => {
-      if (!looksLikeMath(value)) {
-        return match
-      }
-
-      return `$${value}$`
-    })
-}
-
-function looksLikeMath(value: string) {
-  const trimmed = value.trim()
-
-  if (!trimmed || trimmed.includes(" ")) {
-    return false
-  }
-
-  return /\\[a-zA-Z]+|[a-zA-Z0-9][\^_][a-zA-Z0-9{]|\d\s*[+\-*/=]\s*\d|[{}]/.test(trimmed)
-}
-
 function MarkdownContent({ content, className }: MarkdownContentProps) {
   const normalizedContent = normalizeMathMarkdown(content)
 
@@ -116,4 +92,4 @@ function MarkdownContent({ content, className }: MarkdownContentProps) {
   )
 }
 
-export { MarkdownContent, looksLikeMath, normalizeMathMarkdown }
+export { MarkdownContent }

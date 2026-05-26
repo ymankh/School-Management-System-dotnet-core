@@ -168,6 +168,142 @@ public class ExamEngineStoreTests
         Assert.Equal(updated.Groups[0].Id, addedQuestion.GroupId);
     }
 
+    [Fact]
+    public void StartOrResumeAttempt_ReturnsExistingAttemptWithSavedProgress()
+    {
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedExam(store, database.Context, studentId: 42);
+        var firstAttempt = store.StartOrResumeAttempt(exam.Id, 42)!;
+        var firstQuestionId = Assert.Single(firstAttempt.Questions).QuestionId;
+
+        var saved = store.SaveAnswer(firstAttempt.Id, firstQuestionId, new SaveAnswerRequest("{\"selectedOptionId\":1}", true));
+        var resumed = store.StartOrResumeAttempt(exam.Id, 42)!;
+
+        Assert.NotNull(saved);
+        Assert.Equal(firstAttempt.Id, resumed.Id);
+        Assert.Equal(firstAttempt.Questions.Select(question => question.QuestionId), resumed.Questions.Select(question => question.QuestionId));
+        var answer = Assert.Single(resumed.Answers);
+        Assert.Equal(firstQuestionId, answer.QuestionId);
+        Assert.True(answer.FlaggedForReview);
+    }
+
+    [Fact]
+    public void SubmittedAttempt_LocksFutureAnswerSaves()
+    {
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedExam(store, database.Context, studentId: 7);
+        var attempt = store.StartOrResumeAttempt(exam.Id, 7)!;
+        var questionId = Assert.Single(attempt.Questions).QuestionId;
+
+        var submitted = store.SubmitAttempt(attempt.Id);
+        var savedAfterSubmit = store.SaveAnswer(attempt.Id, questionId, new SaveAnswerRequest("{\"selectedOptionId\":1}", false));
+
+        Assert.NotNull(submitted);
+        Assert.Null(savedAfterSubmit);
+        Assert.False(store.CanSaveAnswer(attempt.Id, questionId));
+    }
+
+    [Fact]
+    public void ExpiredAttempt_LocksFutureAnswerSaves()
+    {
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedExam(store, database.Context, studentId: 8);
+        var attempt = store.StartOrResumeAttempt(exam.Id, 8)!;
+        var questionId = Assert.Single(attempt.Questions).QuestionId;
+
+        var expired = store.SubmitAttempt(attempt.Id, expired: true);
+        var savedAfterExpiry = store.SaveAnswer(attempt.Id, questionId, new SaveAnswerRequest("{\"selectedOptionId\":1}", false));
+
+        Assert.NotNull(expired);
+        Assert.Equal(ExamAttemptStatus.Expired, expired.Status);
+        Assert.Null(savedAfterExpiry);
+        Assert.False(store.CanSaveAnswer(attempt.Id, questionId));
+    }
+
+    [Fact]
+    public void SubmittedAttempt_LocksFileUploadMetadataSaves()
+    {
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedFileUploadExam(store, database.Context, studentId: 9);
+        var attempt = store.StartOrResumeAttempt(exam.Id, 9)!;
+        var questionId = Assert.Single(attempt.Questions).QuestionId;
+        var rule = store.GetFileUploadRule(attempt.Id, questionId);
+
+        store.SubmitAttempt(attempt.Id);
+        var uploadAfterSubmit = store.SaveAttemptFileMetadata(
+            attempt.Id,
+            questionId,
+            "answer.pdf",
+            "application/pdf",
+            1024,
+            "/uploads/answer.pdf");
+
+        Assert.NotNull(rule);
+        Assert.Contains("application/pdf", rule.AcceptedContentTypes);
+        Assert.Null(uploadAfterSubmit);
+    }
+
+    [Fact]
+    public void AttemptDto_HidesMarksAndFeedbackUntilMarksArePublished()
+    {
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedExam(store, database.Context, studentId: 10);
+        var attempt = store.StartOrResumeAttempt(exam.Id, 10)!;
+        var questionId = Assert.Single(attempt.Questions).QuestionId;
+        var correctOptionId = store.GetExam(exam.Id)!
+            .Groups
+            .SelectMany(group => group.Questions)
+            .Single(question => question.Id == questionId)
+            .Options
+            .Single(option => option.IsCorrect)
+            .Id;
+
+        store.SaveAnswer(attempt.Id, questionId, new SaveAnswerRequest($"{{\"selectedOptionId\":{correctOptionId}}}", false));
+        var submitted = store.SubmitAttempt(attempt.Id)!;
+        var hidden = ExamEngineStore.ToAttemptDto(submitted, includeMarks: false);
+
+        var publishedExam = store.PublishMarks(exam.Id)!;
+        var publishedAttempt = store.GetStudentAttempt(exam.Id, 10)!;
+        var visible = ExamEngineStore.ToAttemptDto(publishedAttempt, includeMarks: publishedExam.MarkPublished);
+
+        Assert.Equal(0, hidden.TotalMark);
+        var hiddenAnswer = Assert.Single(hidden.Answers);
+        Assert.Equal(0, hiddenAnswer.AwardedMark);
+        Assert.Equal(GradingStatus.NotGraded, hiddenAnswer.GradingStatus);
+
+        Assert.Equal(1, visible.TotalMark);
+        var visibleAnswer = Assert.Single(visible.Answers);
+        Assert.Equal(1, visibleAnswer.AwardedMark);
+        Assert.Equal(GradingStatus.AutoGraded, visibleAnswer.GradingStatus);
+    }
+
+    [Fact]
+    public void RandomizedAttempts_PreserveEachDeliveredOrderOnResume()
+    {
+        using var database = CreateDatabase();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedMultiQuestionExam(store, database.Context, [21, 22]);
+
+        var firstAttempt = store.StartOrResumeAttempt(exam.Id, 21)!;
+        var secondAttempt = store.StartOrResumeAttempt(exam.Id, 22)!;
+        var firstOrder = firstAttempt.Questions.OrderBy(question => question.DeliveredOrder).Select(question => question.QuestionId).ToList();
+        var secondOrder = secondAttempt.Questions.OrderBy(question => question.DeliveredOrder).Select(question => question.QuestionId).ToList();
+
+        var firstResumed = store.StartOrResumeAttempt(exam.Id, 21)!;
+        var secondResumed = store.StartOrResumeAttempt(exam.Id, 22)!;
+
+        Assert.NotEqual(firstAttempt.Id, secondAttempt.Id);
+        Assert.Equal(3, firstOrder.Count);
+        Assert.Equal(3, secondOrder.Count);
+        Assert.Equal(firstOrder, firstResumed.Questions.OrderBy(question => question.DeliveredOrder).Select(question => question.QuestionId));
+        Assert.Equal(secondOrder, secondResumed.Questions.OrderBy(question => question.DeliveredOrder).Select(question => question.QuestionId));
+    }
+
     private static TestDatabase CreateDatabase()
     {
         var connection = new SqliteConnection("DataSource=:memory:");
@@ -178,6 +314,154 @@ public class ExamEngineStoreTests
         var context = new ApplicationDbContext(options);
         context.Database.EnsureCreated();
         return new TestDatabase(connection, context);
+    }
+
+    private static Exam CreatePublishedAssignedExam(ExamEngineStore store, ApplicationDbContext context, int studentId)
+    {
+        var start = DateTime.UtcNow.AddMinutes(-5);
+        var exam = store.CreateExam(new CreateExamRequest(
+            "Autosave Algebra",
+            10,
+            "Mathematics",
+            "Grade 10 - A",
+            "Dr. Noether",
+            ExamMode.Online,
+            start,
+            start.AddHours(1),
+            10,
+            5,
+            "Instructions"));
+        var group = store.AddGroup(exam.Id, new CreateQuestionGroupRequest(
+            "Core",
+            string.Empty,
+            "show-all",
+            null,
+            true))!;
+        store.AddQuestion(group.Id, new CreateQuestionRequest(
+            QuestionType.MultipleChoice,
+            "Solve $x + 1 = 2$",
+            string.Empty,
+            1,
+            true,
+            "Easy",
+            ["algebra"],
+            "auto",
+            true,
+            [
+                new QuestionOptionDto(1, "1", true, 1),
+                new QuestionOptionDto(2, "2", false, 2)
+            ],
+            [],
+            [],
+            [],
+            null));
+
+        context.ExamStudentAssignments.Add(new ExamStudentAssignment { ExamId = exam.Id, StudentId = studentId });
+        context.SaveChanges();
+        return store.PublishExam(exam.Id)!;
+    }
+
+    private static Exam CreatePublishedAssignedFileUploadExam(ExamEngineStore store, ApplicationDbContext context, int studentId)
+    {
+        var start = DateTime.UtcNow.AddMinutes(-5);
+        var exam = store.CreateExam(new CreateExamRequest(
+            "Portfolio Upload",
+            11,
+            "Art",
+            "Grade 10 - A",
+            "Ms. Kahlo",
+            ExamMode.Online,
+            start,
+            start.AddHours(1),
+            10,
+            5,
+            "Instructions"));
+        var group = store.AddGroup(exam.Id, new CreateQuestionGroupRequest(
+            "Submission",
+            string.Empty,
+            "show-all",
+            null,
+            false))!;
+        store.AddQuestion(group.Id, new CreateQuestionRequest(
+            QuestionType.FileUpload,
+            "Upload your response.",
+            string.Empty,
+            10,
+            true,
+            "Medium",
+            ["portfolio"],
+            "manual",
+            false,
+            [],
+            [],
+            [],
+            [],
+            new FileUploadRule
+            {
+                AcceptedContentTypes = ["application/pdf"],
+                MaxSizeBytes = 1_048_576
+            }));
+
+        context.ExamStudentAssignments.Add(new ExamStudentAssignment { ExamId = exam.Id, StudentId = studentId });
+        context.SaveChanges();
+        return store.PublishExam(exam.Id)!;
+    }
+
+    private static Exam CreatePublishedAssignedMultiQuestionExam(
+        ExamEngineStore store,
+        ApplicationDbContext context,
+        IReadOnlyList<int> studentIds)
+    {
+        var start = DateTime.UtcNow.AddMinutes(-5);
+        var exam = store.CreateExam(new CreateExamRequest(
+            "Randomized Algebra",
+            12,
+            "Mathematics",
+            "Grade 10 - A",
+            "Dr. Noether",
+            ExamMode.Online,
+            start,
+            start.AddHours(1),
+            10,
+            5,
+            "Instructions"));
+        exam.ShuffleGroups = true;
+        var group = store.AddGroup(exam.Id, new CreateQuestionGroupRequest(
+            "Core",
+            string.Empty,
+            "show-all",
+            null,
+            true))!;
+
+        for (var index = 1; index <= 3; index++)
+        {
+            store.AddQuestion(group.Id, new CreateQuestionRequest(
+                QuestionType.MultipleChoice,
+                $"Question {index}",
+                string.Empty,
+                1,
+                true,
+                "Easy",
+                ["algebra"],
+                "auto",
+                true,
+                [
+                    new QuestionOptionDto(0, "Correct", true, 1),
+                    new QuestionOptionDto(0, "Distractor", false, 2)
+                ],
+                [],
+                [],
+                [],
+                null));
+        }
+
+        foreach (var studentId in studentIds)
+        {
+            context.ExamStudentAssignments.Add(new ExamStudentAssignment { ExamId = exam.Id, StudentId = studentId });
+        }
+
+        context.SaveChanges();
+        return store.PublishExam(exam.Id)!;
     }
 
     private sealed class TestDatabase(SqliteConnection connection, ApplicationDbContext context) : IDisposable

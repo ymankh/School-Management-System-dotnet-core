@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   closestCenter,
   DndContext,
@@ -47,6 +47,7 @@ import { durationMinutes, formatDate, formatRemainingTime, formatTime } from "@/
 import {
   getMatchPairs,
   getOrderingAnswer,
+  getAttemptQuestions,
   getQuestionOptions,
   parseAnswer,
 } from "@/modules/exam-engine/utils/exam-engine-model"
@@ -91,7 +92,7 @@ export function StudentPortal({
   onSelectQuestion: (questionId: number) => void
   onShowResults: (examId: number) => Promise<void>
   onStartExam: (examId: number) => Promise<void>
-  onSubmitAttempt: () => Promise<void>
+  onSubmitAttempt: (expired?: boolean) => Promise<void>
   onUploadFile: (questionId: number, file: File) => Promise<void>
   page: StudentPage
   panel: StudentPanel
@@ -113,6 +114,7 @@ export function StudentPortal({
             onSaveAnswer={onSaveAnswer}
             onSelectQuestion={onSelectQuestion}
             onShowReview={() => setPanel("review")}
+            onSubmitExpired={() => onSubmitAttempt(true)}
             onUploadFile={onUploadFile}
             questions={questions}
             selectedQuestion={selectedQuestion}
@@ -317,6 +319,7 @@ function ExamPlayer({
   onSaveAnswer,
   onSelectQuestion,
   onShowReview,
+  onSubmitExpired,
   onUploadFile,
   questions,
   selectedQuestion,
@@ -327,14 +330,17 @@ function ExamPlayer({
   onSaveAnswer: (questionId: number, answerJson: string, flaggedForReview?: boolean) => Promise<void>
   onSelectQuestion: (questionId: number) => void
   onShowReview: () => void
+  onSubmitExpired: () => Promise<void>
   onUploadFile: (questionId: number, file: File) => Promise<void>
   questions: ExamQuestion[]
   selectedQuestion: ExamQuestion
 }) {
   const [textAnswer, setTextAnswer] = useState("")
+  const [now, setNow] = useState(() => Date.now())
+  const expiredSubmittedRef = useRef(false)
   const answer = answers[selectedQuestion.id]
   const locked = attempt ? attempt.status !== "InProgress" : false
-  const deliveredOptionOrder = attempt?.questions.find((question) => question.questionId === selectedQuestion.id)?.deliveredOptionOrder ?? []
+  const deliveredOptionOrder = getAttemptQuestions(attempt).find((question) => question.questionId === selectedQuestion.id)?.deliveredOptionOrder ?? []
   const selectedQuestionIndex = Math.max(
     questions.findIndex((question) => question.id === selectedQuestion.id),
     0,
@@ -343,7 +349,22 @@ function ExamPlayer({
   const nextQuestion = questions[selectedQuestionIndex + 1]
   const questionPosition = questions.length > 0 ? selectedQuestionIndex + 1 : 0
   const showManualSave = ["Article", "ShortAnswer", "FillInTheBlank"].includes(selectedQuestion.type)
-  const remainingTime = formatRemainingTime(exam.endAtUtc)
+  const remainingMs = new Date(exam.endAtUtc).getTime() - now
+  const remainingTime = formatRemainingTime(exam.endAtUtc, now)
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timerId)
+  }, [])
+
+  useEffect(() => {
+    if (locked || expiredSubmittedRef.current || remainingMs > 0) {
+      return
+    }
+
+    expiredSubmittedRef.current = true
+    void onSubmitExpired()
+  }, [locked, onSubmitExpired, remainingMs])
 
   return (
     <div className="space-y-4">
@@ -386,6 +407,7 @@ function ExamPlayer({
             <MarkdownContent className="text-base" content={selectedQuestion.bodyMarkdown} />
 
             <QuestionAnswerInput
+              key={selectedQuestion.id}
               answer={answer}
               onChangeText={setTextAnswer}
               locked={locked}
@@ -460,7 +482,8 @@ function QuestionAnswerInput({
   textAnswer: string
 }) {
   const parsedAnswer = parseAnswer(answer?.answerJson)
-  const [uploadState, setUploadState] = useState<"empty" | "uploading" | "uploaded" | "failed" | "removed">("empty")
+  const [uploadState, setUploadState] = useState<"empty" | "uploading" | "uploaded" | "failed" | "replaced" | "removed">("empty")
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [matchingAnswers, setMatchingAnswers] = useState<Record<number, string>>(() => parsedAnswer?.pairs ?? {})
   const [orderingAnswer, setOrderingAnswer] = useState<string[]>(() => getOrderingAnswer(question, parsedAnswer))
   const sensors = useSensors(
@@ -469,11 +492,6 @@ function QuestionAnswerInput({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   )
-
-  useEffect(() => {
-    setMatchingAnswers(parsedAnswer?.pairs ?? {})
-    setOrderingAnswer(getOrderingAnswer(question, parsedAnswer))
-  }, [question.id, answer?.answerJson])
 
   if (question.type === "MultipleChoice") {
     const orderedOptions = optionOrder.length > 0
@@ -547,9 +565,63 @@ function QuestionAnswerInput({
     const maxSizeBytes = question.fileUploadRule?.maxSizeBytes ?? 0
     const acceptExtensions = acceptedTypes.join(",")
     const canUpload = acceptedTypes.length > 0 && maxSizeBytes > 0
+    const currentUploadState = uploadState !== "empty" ? uploadState : parsedAnswer?.state ?? "empty"
+
+    const uploadSelectedFile = (file: File) => {
+      setUploadError(null)
+
+      if (!canUpload) {
+        setUploadState("failed")
+        setUploadError("Upload rules are not configured for this question.")
+        return
+      }
+
+      if (!acceptedTypes.includes(file.type)) {
+        setUploadState("failed")
+        setUploadError("This file type is not accepted for this question.")
+        return
+      }
+
+      if (file.size > maxSizeBytes) {
+        setUploadState("failed")
+        setUploadError(`File size cannot exceed ${Math.round(maxSizeBytes / 1024 / 1024)}MB.`)
+        return
+      }
+
+      setUploadState("uploading")
+      void onUploadFile(question.id, file)
+        .then(() => setUploadState(parsedAnswer?.fileName ? "replaced" : "uploaded"))
+        .catch((error: unknown) => {
+          setUploadState("failed")
+          setUploadError(error instanceof Error ? error.message : "Upload failed. Select the file again.")
+        })
+    }
 
     return (
-      <div className="rounded-md border border-dashed p-6 text-center">
+      <div
+        className={cn(
+          "rounded-md border border-dashed p-6 text-center transition",
+          !locked && canUpload && "hover:border-primary hover:bg-muted/40",
+        )}
+        onDragOver={(event) => {
+          if (locked || !canUpload) {
+            return
+          }
+
+          event.preventDefault()
+        }}
+        onDrop={(event) => {
+          if (locked || !canUpload) {
+            return
+          }
+
+          event.preventDefault()
+          const file = event.dataTransfer.files[0]
+          if (file) {
+            uploadSelectedFile(file)
+          }
+        }}
+      >
         <Upload className="mx-auto mb-2 size-8 text-muted-foreground" />
         <div className="font-medium">Drag and drop files here or browse</div>
         <div className="mt-1 text-xs text-muted-foreground">
@@ -571,22 +643,16 @@ function QuestionAnswerInput({
                 return
               }
 
-              if (!acceptedTypes.includes(file.type) || file.size > maxSizeBytes) {
-                setUploadState("failed")
-                return
-              }
-
-              setUploadState("uploading")
-              void onUploadFile(question.id, file)
-                .then(() => setUploadState("uploaded"))
-                .catch(() => setUploadState("failed"))
+              uploadSelectedFile(file)
             }}
           />
         </label>
         <div className="mt-4 rounded-md border bg-muted/40 p-3 text-left text-xs">
-          <div className="font-medium">Upload state: {parsedAnswer?.state ?? uploadState}</div>
+          <div className="font-medium">Upload state: {currentUploadState}</div>
           {parsedAnswer?.fileName && <div className="mt-1 text-muted-foreground">Current file: {parsedAnswer.fileName}</div>}
-          {uploadState === "failed" && <div className="mt-1 text-destructive">Upload failed. Select the file again.</div>}
+          {uploadState === "uploading" && <div className="mt-1 text-muted-foreground">Uploading file...</div>}
+          {uploadState === "replaced" && <div className="mt-1 text-muted-foreground">Previous file was replaced.</div>}
+          {uploadState === "failed" && <div className="mt-1 text-destructive">{uploadError ?? "Upload failed. Select the file again."}</div>}
           {parsedAnswer?.fileName && (
             <Button
               className="mt-3"
@@ -595,6 +661,7 @@ function QuestionAnswerInput({
               variant="outline"
               onClick={() => {
                 setUploadState("removed")
+                setUploadError(null)
                 void onSaveAnswer(question.id, JSON.stringify({ state: "removed" }), answer?.flaggedForReview)
               }}
             >

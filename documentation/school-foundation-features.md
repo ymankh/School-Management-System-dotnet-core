@@ -41,6 +41,27 @@ Canonical portal routes:
 
 The legacy `/exam` route remains only as a compatibility route. It redirects the authenticated user to their own role-specific portal route.
 
+Dashboard tabs are real pages, not local-only UI state.
+
+Teacher pages:
+
+- `/teacher/dashboard`
+- `/teacher/builder`
+- `/teacher/bank`
+- `/teacher/grading`
+
+Student pages:
+
+- `/student/dashboard`
+- `/student/schedule`
+- `/student/homework`
+- `/student/exams`
+- `/student/messages`
+- `/student/profile`
+- `/student/settings`
+
+The parent `/teacher` and `/student` routes redirect to their default dashboard pages.
+
 Frontend user-type module folders:
 
 - `client/src/modules/admin/`
