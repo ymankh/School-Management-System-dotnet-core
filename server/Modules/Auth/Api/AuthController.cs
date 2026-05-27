@@ -36,11 +36,19 @@ public sealed class AuthController(ApplicationDbContext db) : ControllerBase
     {
         var fullName = request.FullName.Trim();
         var email = request.Email.Trim().ToLowerInvariant();
-        var role = AuthRoles.PublicRegistrationRole;
+        var requestedRole = request.Role?.Trim();
+        var role = string.IsNullOrWhiteSpace(requestedRole)
+            ? AuthRoles.PublicRegistrationRole
+            : requestedRole.ToLowerInvariant();
 
         if (fullName.Length < 2)
         {
             return BadRequest(new { error = "Enter your full name." });
+        }
+
+        if (!AuthRoles.IsValid(role))
+        {
+            return BadRequest(new { error = "Enter a valid account role." });
         }
 
         if (!email.Contains('@') || !email.Contains('.'))
