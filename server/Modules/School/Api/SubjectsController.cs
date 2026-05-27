@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemTask.Data;
 using SchoolSystemTask.Modules.School.Domain;
 using SchoolSystemTask.Modules.School.DTOs;
@@ -39,6 +40,30 @@ public sealed class SubjectsController(ApplicationDbContext db) : ControllerBase
     {
         var subject = db.Subjects.FirstOrDefault(item => item.Id == id);
         return subject is null ? NotFound(new { error = "Subject was not found." }) : Ok(ToDto(subject));
+    }
+
+    [HttpGet("/api/class-subjects")]
+    public IActionResult GetClassSubjectOptions()
+    {
+        var options = db.ClassSubjects
+            .AsNoTracking()
+            .Include(item => item.SchoolClass)
+            .Include(item => item.Subject)
+            .Where(item => item.SchoolClass != null && item.Subject != null && item.SchoolClass.IsActive && item.Subject.IsActive)
+            .OrderBy(item => item.SchoolClass!.Name)
+            .ThenBy(item => item.Subject!.Name)
+            .Select(item => new ClassSubjectOptionDto(
+                item.Id,
+                item.SchoolClassId,
+                item.SchoolClass!.Name,
+                item.SchoolClass.GradeLevel,
+                item.SchoolClass.AcademicYear,
+                item.SubjectId,
+                item.Subject!.Name,
+                item.Subject.Code))
+            .ToList();
+
+        return Ok(options);
     }
 
     [HttpPost]

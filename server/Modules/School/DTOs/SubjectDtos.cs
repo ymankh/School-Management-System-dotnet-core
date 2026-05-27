@@ -7,6 +7,16 @@ public sealed record SubjectDto(
     string Description,
     bool IsActive);
 
+public sealed record ClassSubjectOptionDto(
+    int Id,
+    int SchoolClassId,
+    string ClassName,
+    string GradeLevel,
+    string AcademicYear,
+    int SubjectId,
+    string Subject,
+    string SubjectCode);
+
 public sealed record CreateSubjectRequest(
     string Name,
     string Code,
