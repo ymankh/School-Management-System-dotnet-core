@@ -17,6 +17,7 @@ import {
 
 import {
   createSubjectSkill,
+  getClassSubjects,
   getGradingAnswers,
   getSubjectSkills,
   gradeAnswer,
@@ -31,6 +32,7 @@ import {
 } from "@/modules/exam-engine/components/exam-engine-shared"
 import { MarkdownContent } from "@/modules/exam-engine/components/markdown-content"
 import type {
+  ClassSubjectOption,
   Exam,
   ExamDashboard,
   ExamQuestion,
@@ -53,6 +55,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/shared/components/ui/sheet"
 
 const questionTypes: QuestionType[] = [
   "MultipleChoice",
@@ -90,6 +100,7 @@ function fromDatetimeLocal(value: string) {
 export function TeacherPortal({
   activeExam,
   archiveExam,
+  createDraftExam,
   dashboard,
   dashboardFilters,
   duplicateExam,
@@ -107,6 +118,7 @@ export function TeacherPortal({
 }: {
   activeExam: Exam | null
   archiveExam: (examId: number) => void
+  createDraftExam: (classSubject?: ClassSubjectOption) => void
   dashboard: ExamDashboard | null
   dashboardFilters: Required<ExamDashboardFilters>
   duplicateExam: (examId: number) => void
@@ -174,6 +186,13 @@ export function TeacherPortal({
           uploadAttachment={uploadAttachment}
         />
       )}
+      {panel === "builder" && !activeExam && (
+        <BuilderEmptyState
+          createDraftExam={createDraftExam}
+          dashboard={dashboard}
+          openExam={(examId) => openExam(examId, "builder")}
+        />
+      )}
       {panel === "bank" && activeExam && (
         <QuestionBankLibrary
           importFromBank={(itemId) => {
@@ -186,6 +205,98 @@ export function TeacherPortal({
         />
       )}
       {panel === "grading" && activeExam && <TeacherGrading exam={activeExam} publishMarks={publishMarks} />}
+    </div>
+  )
+}
+
+function BuilderEmptyState({
+  createDraftExam,
+  dashboard,
+  openExam,
+}: {
+  createDraftExam: (classSubject?: ClassSubjectOption) => void
+  dashboard: ExamDashboard | null
+  openExam: (examId: number) => void
+}) {
+  const exams = dashboard?.exams ?? []
+  const editableExams = exams.filter((exam) => exam.status !== "Archived")
+  const classSubjectsQuery = useQuery({ queryKey: ["class-subject-options"], queryFn: getClassSubjects })
+  const classSubjects = classSubjectsQuery.data ?? []
+  const [selectedClassSubjectId, setSelectedClassSubjectId] = useState("")
+  const selectedClassSubject =
+    classSubjects.find((option) => option.id.toString() === selectedClassSubjectId) ?? classSubjects[0]
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>Choose An Exam To Build</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Select an existing draft or create a new exam to open the builder workspace.
+              </p>
+            </div>
+            <Button onClick={() => createDraftExam(selectedClassSubject)}>
+              <Plus className="size-4" />
+              New Draft
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {editableExams.map((exam) => (
+            <button
+              key={exam.id}
+              className="flex w-full flex-col gap-3 rounded-md border bg-background p-4 text-left transition hover:border-primary hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+              type="button"
+              onClick={() => openExam(exam.id)}
+            >
+              <span>
+                <span className="block font-medium">{exam.title}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">
+                  {exam.subject} • {exam.className} • {formatDate(exam.startAtUtc)}
+                </span>
+              </span>
+              <span className="flex items-center gap-2">
+                <StatusBadge status={exam.status} />
+                <Badge variant="outline">{exam.mode}</Badge>
+              </span>
+            </button>
+          ))}
+          {editableExams.length === 0 && (
+            <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No editable exams are available yet. Create a new draft to start building.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="self-start">
+        <CardHeader>
+          <CardTitle>Builder Starts Here</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <label className="block text-xs font-medium text-foreground">
+            Class and subject for new draft
+            <Select value={selectedClassSubject?.id.toString() ?? ""} onValueChange={setSelectedClassSubjectId}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Choose class subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {classSubjects.map((option) => (
+                  <SelectItem key={option.id} value={option.id.toString()}>
+                    {option.className} / {option.subject}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <p>After selecting an exam, the builder shows groups, question editing, live Markdown and LaTeX preview, settings, attachments, and publishing controls.</p>
+          <div className="rounded-md border bg-muted/40 p-3">
+            Drafts are hidden from students until they are saved, made visible, and published.
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -373,6 +484,11 @@ function ExamBuilder({
   updateExam: (exam: Exam) => void
   uploadAttachment: (examId: number, file: File) => Promise<UploadedAttachment>
 }) {
+  const defaultSkillDraft = {
+    name: "",
+    descriptionMarkdown: "",
+    displayOrder: "",
+  }
   const [editableExam, setEditableExam] = useState<Exam>(() => exam)
   const [editableGroups, setEditableGroups] = useState<QuestionGroup[]>(() => getExamGroups(exam))
   const [selectedBankItems, setSelectedBankItems] = useState<number[]>([])
@@ -383,6 +499,14 @@ function ExamBuilder({
   const [attachment, setAttachment] = useState<File | null>(null)
   const [uploadedAttachment, setUploadedAttachment] = useState<UploadedAttachment | null>(null)
   const [attachmentUploadError, setAttachmentUploadError] = useState<string | null>(null)
+  const [isSkillSheetOpen, setIsSkillSheetOpen] = useState(false)
+  const [skillDraft, setSkillDraft] = useState(defaultSkillDraft)
+  const [groupSkillDraft, setGroupSkillDraft] = useState<{
+    skill: SubjectSkill
+    selectionPolicy: QuestionGroup["selectionPolicy"]
+    questionsToShow: string
+    shuffleQuestions: boolean
+  } | null>(null)
   const queryClient = useQueryClient()
   const subjectSkillsQuery = useQuery({
     queryKey: ["subject-skills", exam.classSubjectId],
@@ -392,9 +516,14 @@ function ExamBuilder({
     mutationFn: createSubjectSkill,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["subject-skills", exam.classSubjectId] })
+      setIsSkillSheetOpen(false)
+      setSkillDraft(defaultSkillDraft)
     },
   })
   const subjectSkills = subjectSkillsQuery.data ?? []
+  const skillName = skillDraft.name.trim()
+  const skillDisplayOrder = skillDraft.displayOrder ? Number.parseInt(skillDraft.displayOrder, 10) : subjectSkills.length + 1
+  const isSkillDraftValid = skillName.length > 0 && Number.isInteger(skillDisplayOrder) && skillDisplayOrder > 0
 
   const bankDifficultyOptions = useMemo(
     () => uniqueSorted(questionBank.map((item) => item.question.difficulty).filter(Boolean)),
@@ -417,46 +546,54 @@ function ExamBuilder({
     })
   }, [bankDifficultyFilter, bankSearch, bankTypeFilter, questionBank])
 
-  const addSkill = () => {
-    const name = window.prompt(`${exam.subject} skill name`)
-    if (!name?.trim()) {
+  const saveSkill = () => {
+    if (!isSkillDraftValid) {
       return
     }
-
-    const descriptionMarkdown = window.prompt("Skill description Markdown") ?? ""
-    const displayOrderInput = window.prompt("Display order")
-    const displayOrder = displayOrderInput ? Number.parseInt(displayOrderInput, 10) : subjectSkills.length + 1
 
     createSubjectSkillMutation.mutate({
       classSubjectId: exam.classSubjectId,
       subject: exam.subject,
-      name: name.trim(),
-      descriptionMarkdown,
-      displayOrder: Number.isInteger(displayOrder) ? displayOrder : subjectSkills.length + 1,
+      name: skillName,
+      descriptionMarkdown: skillDraft.descriptionMarkdown,
+      displayOrder: skillDisplayOrder,
     })
   }
 
-  const addGroupFromSkill = (skill: SubjectSkill) => {
-    const selectionPolicyInput = window.prompt(`Selection policy for ${skill.name}: show-all or pick-random`)
-    const selectionPolicy = selectionPolicyInput === "pick-random" ? "pick-random" : "show-all"
-    const questionsToShowInput = selectionPolicy === "pick-random" ? window.prompt("Questions to show") : null
-    const parsedQuestionsToShow = questionsToShowInput ? Number.parseInt(questionsToShowInput, 10) : Number.NaN
-    const shuffleQuestions = window.confirm(`Shuffle questions in ${skill.name}?`)
+  const openGroupFromSkillSheet = (skill: SubjectSkill) => {
+    setGroupSkillDraft({
+      skill,
+      selectionPolicy: "show-all",
+      questionsToShow: "1",
+      shuffleQuestions: true,
+    })
+  }
+
+  const addGroupFromSkill = () => {
+    if (!groupSkillDraft) {
+      return
+    }
+
+    const parsedQuestionsToShow = Number.parseInt(groupSkillDraft.questionsToShow, 10)
 
     setEditableGroups((currentGroups) => [
       ...currentGroups,
       {
         id: -Date.now(),
         examId: exam.id,
-        title: skill.name,
-        instructionsMarkdown: skill.descriptionMarkdown,
+        title: groupSkillDraft.skill.name,
+        instructionsMarkdown: groupSkillDraft.skill.descriptionMarkdown,
         authoringOrder: currentGroups.length + 1,
-        selectionPolicy,
-        questionsToShow: Number.isInteger(parsedQuestionsToShow) && parsedQuestionsToShow > 0 ? parsedQuestionsToShow : null,
-        shuffleQuestions,
+        selectionPolicy: groupSkillDraft.selectionPolicy,
+        questionsToShow:
+          groupSkillDraft.selectionPolicy === "pick-random" && Number.isInteger(parsedQuestionsToShow) && parsedQuestionsToShow > 0
+            ? parsedQuestionsToShow
+            : null,
+        shuffleQuestions: groupSkillDraft.shuffleQuestions,
         questions: [],
       },
     ])
+    setGroupSkillDraft(null)
   }
 
   const updateQuestionDraft = (groupId: number, questionId: number, patch: Partial<ExamQuestion>) => {
@@ -489,6 +626,7 @@ function ExamBuilder({
   }
 
   return (
+    <>
     <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
       <Card className="xl:sticky xl:top-20 xl:self-start">
         <CardHeader>
@@ -516,7 +654,7 @@ function ExamBuilder({
           <div className="rounded-md border bg-background p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="text-sm font-medium">Subject Skills</div>
-              <Button variant="outline" size="sm" onClick={addSkill}><Plus className="size-4" /> Skill</Button>
+              <Button variant="outline" size="sm" onClick={() => setIsSkillSheetOpen(true)}><Plus className="size-4" /> Skill</Button>
             </div>
             <div className="space-y-2">
               {subjectSkills.map((skill) => (
@@ -524,7 +662,7 @@ function ExamBuilder({
                   key={skill.id}
                   className="w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
                   type="button"
-                  onClick={() => addGroupFromSkill(skill)}
+                  onClick={() => openGroupFromSkillSheet(skill)}
                 >
                   <span className="font-medium">{skill.name}</span>
                   {skill.descriptionMarkdown && <span className="block text-muted-foreground">{skill.descriptionMarkdown}</span>}
@@ -916,6 +1054,149 @@ function ExamBuilder({
         </CardContent>
       </Card>
     </div>
+
+    <Sheet open={isSkillSheetOpen} onOpenChange={setIsSkillSheetOpen}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Add Subject Skill</SheetTitle>
+          <SheetDescription>
+            Skills become reusable grouping anchors for {exam.subject} exams.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4 px-4">
+          <label className="block text-xs font-medium">
+            Skill name
+            <Input
+              className="mt-1"
+              placeholder="Linear equations"
+              value={skillDraft.name}
+              onChange={(event) => setSkillDraft((current) => ({ ...current, name: event.target.value }))}
+            />
+          </label>
+          <label className="block text-xs font-medium">
+            Description Markdown
+            <textarea
+              className="mt-1 min-h-28 w-full rounded-md border bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30"
+              placeholder="Optional instructions or scope for this skill..."
+              value={skillDraft.descriptionMarkdown}
+              onChange={(event) => setSkillDraft((current) => ({ ...current, descriptionMarkdown: event.target.value }))}
+            />
+          </label>
+          <label className="block text-xs font-medium">
+            Display order
+            <Input
+              className="mt-1"
+              min={1}
+              type="number"
+              value={skillDraft.displayOrder}
+              placeholder={(subjectSkills.length + 1).toString()}
+              onChange={(event) => setSkillDraft((current) => ({ ...current, displayOrder: event.target.value }))}
+            />
+          </label>
+          {!isSkillDraftValid && (
+            <div className="rounded-md border border-muted bg-muted/40 p-3 text-xs text-muted-foreground">
+              Add a skill name and a positive display order.
+            </div>
+          )}
+        </div>
+        <SheetFooter>
+          <Button
+            disabled={!isSkillDraftValid || createSubjectSkillMutation.isPending}
+            onClick={saveSkill}
+          >
+            <Plus className="size-4" />
+            {createSubjectSkillMutation.isPending ? "Saving..." : "Add Skill"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setIsSkillSheetOpen(false)
+              setSkillDraft(defaultSkillDraft)
+            }}
+          >
+            Cancel
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+
+    <Sheet open={Boolean(groupSkillDraft)} onOpenChange={(open) => !open && setGroupSkillDraft(null)}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Create Group From Skill</SheetTitle>
+          <SheetDescription>
+            Configure how questions in this skill group are delivered to students.
+          </SheetDescription>
+        </SheetHeader>
+        {groupSkillDraft && (
+          <div className="space-y-4 px-4">
+            <div className="rounded-md border bg-muted/30 p-3">
+              <div className="font-medium">{groupSkillDraft.skill.name}</div>
+              {groupSkillDraft.skill.descriptionMarkdown && (
+                <div className="mt-1 text-xs text-muted-foreground">{groupSkillDraft.skill.descriptionMarkdown}</div>
+              )}
+            </div>
+            <label className="block text-xs font-medium">
+              Selection policy
+              <Select
+                value={groupSkillDraft.selectionPolicy}
+                onValueChange={(value) =>
+                  setGroupSkillDraft((current) =>
+                    current ? { ...current, selectionPolicy: value as QuestionGroup["selectionPolicy"] } : current,
+                  )
+                }
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="show-all">Show all questions</SelectItem>
+                  <SelectItem value="pick-random">Pick random questions</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            {groupSkillDraft.selectionPolicy === "pick-random" && (
+              <label className="block text-xs font-medium">
+                Questions to show
+                <Input
+                  className="mt-1"
+                  min={1}
+                  type="number"
+                  value={groupSkillDraft.questionsToShow}
+                  onChange={(event) =>
+                    setGroupSkillDraft((current) => current ? { ...current, questionsToShow: event.target.value } : current)
+                  }
+                />
+              </label>
+            )}
+            <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+              <input
+                checked={groupSkillDraft.shuffleQuestions}
+                className="mt-1"
+                type="checkbox"
+                onChange={(event) =>
+                  setGroupSkillDraft((current) => current ? { ...current, shuffleQuestions: event.target.checked } : current)
+                }
+              />
+              <span>
+                <span className="block font-medium">Shuffle questions for students</span>
+                <span className="text-xs text-muted-foreground">The teacher authoring order stays intact, while each attempt stores its delivered order.</span>
+              </span>
+            </label>
+          </div>
+        )}
+        <SheetFooter>
+          <Button onClick={addGroupFromSkill}>
+            <Plus className="size-4" />
+            Add Group
+          </Button>
+          <Button variant="outline" onClick={() => setGroupSkillDraft(null)}>
+            Cancel
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+    </>
   )
 }
 

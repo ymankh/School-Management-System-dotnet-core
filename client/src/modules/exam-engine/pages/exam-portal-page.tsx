@@ -15,6 +15,7 @@ import {
 import type { AuthUser } from "@/modules/auth"
 import {
   archiveExam,
+  createExam,
   duplicateExam,
   getExam,
   getExamDashboard,
@@ -38,7 +39,7 @@ import {
 } from "@/modules/exam-engine/components/exam-engine-shared"
 import { StudentPortal } from "@/modules/exam-engine/components/student-portal"
 import { TeacherPortal } from "@/modules/exam-engine/components/teacher-portal"
-import type { Exam, ExamAttempt, ExamDashboard, ExamQuestion, StudentAnswer } from "@/modules/exam-engine/types/exam-engine.types"
+import type { ClassSubjectOption, Exam, ExamAttempt, ExamDashboard, ExamQuestion, StudentAnswer } from "@/modules/exam-engine/types/exam-engine.types"
 import type { MainView, StudentPage, StudentPanel, TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 import { getAttemptQuestions, getExamQuestions } from "@/modules/exam-engine/utils/exam-engine-model"
 import { ErrorBoundary } from "@/shared/components/error-boundary"
@@ -292,6 +293,15 @@ function ExamPortalPage({
     },
   })
 
+  const createExamMutation = useMutation({
+    mutationFn: createExam,
+    onSuccess: (exam) => {
+      setActiveExamOverride(exam)
+      handleTeacherPanelChange("builder")
+      void queryClient.invalidateQueries({ queryKey: ["exam-dashboard"] })
+    },
+  })
+
   const activeExam = activeExamOverride
   const importQuestionsMutation = useMutation({
     mutationFn: ({ examId, groupId, itemIds }: { examId: number; groupId: number; itemIds: number[] }) =>
@@ -330,6 +340,7 @@ function ExamPortalPage({
     duplicateExamMutation.error ??
     archiveExamMutation.error ??
     updateExamMutation.error ??
+    createExamMutation.error ??
     importQuestionsMutation.error ??
     uploadExamAttachmentMutation.error ??
     publishMarksMutation.error
@@ -456,6 +467,23 @@ function ExamPortalPage({
           <TeacherPortal
             activeExam={activeExam}
             archiveExam={(examId) => archiveExamMutation.mutate(examId)}
+            createDraftExam={(classSubject?: ClassSubjectOption) => {
+              const start = new Date(Date.now() + 60 * 60 * 1000)
+              const end = new Date(start.getTime() + 60 * 60 * 1000)
+              createExamMutation.mutate({
+                title: classSubject ? `${classSubject.subject} Exam` : "Untitled Exam",
+                classSubjectId: classSubject?.id ?? 0,
+                subject: classSubject?.subject ?? "General",
+                className: classSubject?.className ?? "Unassigned",
+                teacherName: currentUser?.fullName ?? "Teacher",
+                mode: "Online",
+                startAtUtc: start.toISOString(),
+                endAtUtc: end.toISOString(),
+                maxMark: 100,
+                passingMark: 50,
+                instructionsMarkdown: "Write exam instructions here.",
+              })
+            }}
             dashboard={dashboard}
             dashboardFilters={dashboardFilters}
             duplicateExam={(examId) => duplicateExamMutation.mutate(examId)}

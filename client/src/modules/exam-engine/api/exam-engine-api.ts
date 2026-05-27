@@ -1,7 +1,9 @@
 import axios, { type AxiosRequestConfig } from "axios"
 
 import type {
+  ClassSubjectOption,
   Exam,
+  ExamMode,
   ExamAttempt,
   ExamDashboard,
   ExamSummary,
@@ -93,6 +95,25 @@ export async function getExam(id: number) {
   return normalizeExam(await request<Exam>(`/exams/${id}`))
 }
 
+export async function createExam(payload: {
+  title: string
+  classSubjectId: number
+  subject: string
+  className: string
+  teacherName: string
+  mode: ExamMode
+  startAtUtc: string
+  endAtUtc: string
+  maxMark: number
+  passingMark: number
+  instructionsMarkdown: string
+}) {
+  return normalizeExam(await request<Exam>("/exams", {
+    method: "POST",
+    data: payload,
+  }))
+}
+
 export async function getStudentExamAttempt(studentId: number, examId: number) {
   return normalizeAttempt(await request<ExamAttempt>(`/students/${studentId}/exams/${examId}/attempt`))
 }
@@ -107,6 +128,11 @@ export async function getQuestionBank() {
 export async function getSubjectSkills(classSubjectId: number) {
   const skills = await request<SubjectSkill[]>(`/class-subjects/${classSubjectId}/skills`)
   return Array.isArray(skills) ? skills : []
+}
+
+export async function getClassSubjects() {
+  const options = await request<ClassSubjectOption[]>("/class-subjects")
+  return Array.isArray(options) ? options : []
 }
 
 export async function createSubjectSkill(payload: {

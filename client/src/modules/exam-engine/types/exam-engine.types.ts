@@ -1,5 +1,16 @@
 export type ExamMode = "Online" | "Paper" | "Mixed"
 
+export type ClassSubjectOption = {
+  id: number
+  schoolClassId: number
+  className: string
+  gradeLevel: string
+  academicYear: string
+  subjectId: number
+  subject: string
+  subjectCode: string
+}
+
 export type ExamStatus = "Draft" | "Scheduled" | "Active" | "Completed" | "Archived"
 
 export type QuestionType =
