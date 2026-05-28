@@ -79,7 +79,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<SubjectSkill>(entity =>
         {
             entity.HasKey(skill => skill.Id);
-            entity.HasIndex(skill => new { skill.ClassSubjectId, skill.Name }).IsUnique();
+            entity.HasIndex(skill => new { skill.SubjectId, skill.Name }).IsUnique();
         });
         modelBuilder.Entity<ExamStudentAssignment>(entity =>
         {

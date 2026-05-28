@@ -190,9 +190,19 @@ public sealed class ExamEngineStore(ApplicationDbContext db)
 
     public IReadOnlyList<SubjectSkill> GetSubjectSkills(int classSubjectId)
     {
+        var classSubject = db.ClassSubjects
+            .AsNoTracking()
+            .Include(item => item.Subject)
+            .FirstOrDefault(item => item.Id == classSubjectId);
+
+        if (classSubject is null)
+        {
+            return [];
+        }
+
         return db.SubjectSkills
             .AsNoTracking()
-            .Where(skill => skill.ClassSubjectId == classSubjectId)
+            .Where(skill => skill.SubjectId == classSubject.SubjectId)
             .OrderBy(skill => skill.DisplayOrder)
             .ThenBy(skill => skill.Name)
             .ToList();
@@ -200,10 +210,21 @@ public sealed class ExamEngineStore(ApplicationDbContext db)
 
     public SubjectSkill CreateSubjectSkill(CreateSubjectSkillRequest request)
     {
+        var classSubject = db.ClassSubjects
+            .AsNoTracking()
+            .Include(item => item.Subject)
+            .FirstOrDefault(item => item.Id == request.ClassSubjectId);
+
+        if (classSubject is null)
+        {
+            throw new InvalidOperationException("Class subject was not found.");
+        }
+
         var skill = new SubjectSkill
         {
             ClassSubjectId = request.ClassSubjectId,
-            Subject = request.Subject,
+            SubjectId = classSubject.SubjectId,
+            Subject = classSubject.Subject?.Name ?? request.Subject,
             Name = request.Name,
             DescriptionMarkdown = request.DescriptionMarkdown,
             DisplayOrder = request.DisplayOrder

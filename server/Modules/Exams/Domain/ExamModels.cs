@@ -144,6 +144,7 @@ public sealed class SubjectSkill
 {
     public int Id { get; set; }
     public int ClassSubjectId { get; set; }
+    public int SubjectId { get; set; }
     public string Subject { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;

@@ -596,6 +596,43 @@ function ExamBuilder({
     setGroupSkillDraft(null)
   }
 
+  const addQuestionToGroup = (groupId: number) => {
+    setEditableGroups((currentGroups) =>
+      currentGroups.map((group) => {
+        if (group.id !== groupId) {
+          return group
+        }
+
+        const questions = getGroupQuestions(group)
+        const nextOrder = questions.length + 1
+        const question: ExamQuestion = {
+          id: -Date.now(),
+          groupId,
+          type: "MultipleChoice",
+          bodyMarkdown: "",
+          referenceMarkdown: "",
+          mark: 1,
+          authoringOrder: nextOrder,
+          isRequired: true,
+          difficulty: "Medium",
+          tags: [],
+          gradingRule: "auto",
+          shuffleOptions: true,
+          options: [
+            { id: -Date.now() - 1, textMarkdown: "Option A", isCorrect: true, authoringOrder: 1 },
+            { id: -Date.now() - 2, textMarkdown: "Option B", isCorrect: false, authoringOrder: 2 },
+          ],
+          matchPairs: [],
+          orderingItems: [],
+          acceptedAnswers: [],
+          fileUploadRule: null,
+        }
+
+        return { ...group, questions: [...questions, question] }
+      }),
+    )
+  }
+
   const updateQuestionDraft = (groupId: number, questionId: number, patch: Partial<ExamQuestion>) => {
     setEditableGroups((currentGroups) =>
       currentGroups.map((group) =>
@@ -654,7 +691,7 @@ function ExamBuilder({
           <div className="rounded-md border bg-background p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="text-sm font-medium">Subject Skills</div>
-              <Button variant="outline" size="sm" onClick={() => setIsSkillSheetOpen(true)}><Plus className="size-4" /> Skill</Button>
+              <Button variant="outline" size="sm" onClick={() => setIsSkillSheetOpen(true)}><Plus className="size-4" /> Subject Skill</Button>
             </div>
             <div className="space-y-2">
               {subjectSkills.map((skill) => (
@@ -706,7 +743,13 @@ function ExamBuilder({
                         {group.selectionPolicy === "pick-random" ? `Pick ${group.questionsToShow}` : "Show all"} • {getGroupQuestions(group).length} questions
                       </p>
                     </div>
-                    <Badge variant="outline">Use Question Bank to add questions</Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline">Question Bank optional</Badge>
+                      <Button size="sm" type="button" onClick={() => addQuestionToGroup(group.id)}>
+                        <Plus className="size-4" />
+                        Add Question
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -1058,7 +1101,7 @@ function ExamBuilder({
     <Sheet open={isSkillSheetOpen} onOpenChange={setIsSkillSheetOpen}>
       <SheetContent className="sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Add Subject Skill</SheetTitle>
+          <SheetTitle>Add Skill To Subject</SheetTitle>
           <SheetDescription>
             Skills become reusable grouping anchors for {exam.subject} exams.
           </SheetDescription>

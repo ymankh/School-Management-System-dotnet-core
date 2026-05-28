@@ -92,6 +92,7 @@ export type QuestionGroup = {
 export type SubjectSkill = {
   id: number
   classSubjectId: number
+  subjectId: number
   subject: string
   name: string
   descriptionMarkdown: string
