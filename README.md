@@ -62,6 +62,13 @@ Data Source=school-system-dev.db
 
 EF Core migrations run automatically at startup.
 
+The migrations seed a default admin account for local development if it does not already exist:
+
+```text
+Email: admin@school.local
+Password: Admin@12345
+```
+
 ### Client Only
 
 ```bash
