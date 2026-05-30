@@ -51,13 +51,13 @@ This scan reviewed the current project files under:
 | Markdown/math tests | `client/src/modules/exam-engine/components/markdown-content.test.ts` exists and passes. | Complete |
 | Attempt locking coverage | Submitted and expired save locking tests exist. | Complete |
 | Randomization freeze coverage | Tests verify resume order and independent student attempt orders. | Complete |
-| File upload validation coverage | Store-level upload metadata locking test exists; controller validation tests remain. | In Progress |
+| File upload validation coverage | Store-level upload metadata locking and controller-level invalid type/oversize tests exist. | Complete |
 
 ## Current Gap List
 
 1. Complete frontend interaction tests for teacher dashboard filters, builder edits, bank import, student player, review submit, and results visibility.
 2. Add backend tests for randomization freeze, attempt resume, submitted/expired locking, auto-submit expiry, and mark visibility.
-3. Strengthen file-upload UX with drag/drop, explicit replaced state, progress display, and tests for invalid type and oversize.
+3. Strengthen file-upload UX progress display and any remaining browser interaction coverage.
 4. Make the teacher builder a stricter multi-step workflow instead of mostly a dense all-in-one editor.
 5. Replace temporary student ID entry with authenticated student context once auth integration is ready.
 6. Add richer attempt policy and security/focus settings, including explicit duration and expiry behavior.

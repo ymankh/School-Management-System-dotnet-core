@@ -1,6 +1,11 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using SchoolSystemTask.Data;
+using SchoolSystemTask.Modules.Exams.Api;
 using SchoolSystemTask.Modules.Exams.Application;
 using SchoolSystemTask.Modules.Exams.Domain;
 using SchoolSystemTask.Modules.Exams.DTOs;
@@ -248,6 +253,46 @@ public class ExamEngineStoreTests
     }
 
     [Fact]
+    public async Task UploadAttemptFile_RejectsUnsupportedContentType()
+    {
+        using var database = CreateDatabase();
+        using var webRoot = new TestWebRoot();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedFileUploadExam(store, database.Context, studentId: 31);
+        var attempt = store.StartOrResumeAttempt(exam.Id, 31)!;
+        var questionId = Assert.Single(attempt.Questions).QuestionId;
+        var controller = new ExamsController(store, webRoot.Environment);
+        var file = CreateFormFile("answer.png", "image/png", 1024);
+
+        var result = await controller.UploadAttemptFile(attempt.Id, questionId, file);
+        var savedAttempt = store.StartOrResumeAttempt(exam.Id, 31)!;
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("file type", badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(savedAttempt.Answers);
+    }
+
+    [Fact]
+    public async Task UploadAttemptFile_RejectsOversizeFile()
+    {
+        using var database = CreateDatabase();
+        using var webRoot = new TestWebRoot();
+        var store = new ExamEngineStore(database.Context);
+        var exam = CreatePublishedAssignedFileUploadExam(store, database.Context, studentId: 32);
+        var attempt = store.StartOrResumeAttempt(exam.Id, 32)!;
+        var questionId = Assert.Single(attempt.Questions).QuestionId;
+        var controller = new ExamsController(store, webRoot.Environment);
+        var file = CreateFormFile("answer.pdf", "application/pdf", 1_048_577);
+
+        var result = await controller.UploadAttemptFile(attempt.Id, questionId, file);
+        var savedAttempt = store.StartOrResumeAttempt(exam.Id, 32)!;
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("File size", badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(savedAttempt.Answers);
+    }
+
+    [Fact]
     public void AttemptDto_HidesMarksAndFeedbackUntilMarksArePublished()
     {
         using var database = CreateDatabase();
@@ -464,6 +509,17 @@ public class ExamEngineStoreTests
         return store.PublishExam(exam.Id)!;
     }
 
+    private static FormFile CreateFormFile(string fileName, string contentType, int sizeBytes)
+    {
+        var content = new byte[sizeBytes];
+        var stream = new MemoryStream(content);
+        return new FormFile(stream, 0, content.Length, "file", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
+    }
+
     private sealed class TestDatabase(SqliteConnection connection, ApplicationDbContext context) : IDisposable
     {
         public ApplicationDbContext Context { get; } = context;
@@ -473,5 +529,36 @@ public class ExamEngineStoreTests
             Context.Dispose();
             connection.Dispose();
         }
+    }
+
+    private sealed class TestWebRoot : IDisposable
+    {
+        private readonly string path = Path.Combine(Path.GetTempPath(), $"school-system-tests-{Guid.NewGuid():N}");
+
+        public IWebHostEnvironment Environment { get; }
+
+        public TestWebRoot()
+        {
+            Directory.CreateDirectory(path);
+            Environment = new TestWebHostEnvironment(path);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+    }
+
+    private sealed class TestWebHostEnvironment(string path) : IWebHostEnvironment
+    {
+        public string ApplicationName { get; set; } = "SchoolSystemTask.Tests";
+        public IFileProvider WebRootFileProvider { get; set; } = null!;
+        public string WebRootPath { get; set; } = path;
+        public string EnvironmentName { get; set; } = "Development";
+        public string ContentRootPath { get; set; } = path;
+        public IFileProvider ContentRootFileProvider { get; set; } = null!;
     }
 }

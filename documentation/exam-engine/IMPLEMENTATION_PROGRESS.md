@@ -26,7 +26,7 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
 | Student exams | Upcoming/active/completed tabs and cards | Partial | Student portal loads exams for an entered student ID from DB-backed assignments/attempts; exact tab/status behavior needs review. |
 | Exam player | Timer, save/exit, map, answer states, autosave, lock | Partial | Player exists; locking/expiry and UX completeness need review. |
 | Focus mode | Reduced navigation, split layout, same autosave | Partial | Focus mode UI exists; behavior needs review. |
-| File upload answer | Empty/uploading/uploaded/failed/replaced/removed states | Partial | Upload exists; full explicit state workflow needs review. |
+| File upload answer | Empty/uploading/uploaded/failed/replaced/removed states | Partial | Upload exists; controller tests now cover invalid type and oversize rejection; browser interaction coverage still needs review. |
 | Review/submit | Summary, continue, confirmation, lock attempt | Partial | Review page exists; confirmation/lock behavior needs review. |
 | Results | Published marks only, score, feedback, breakdown | Partial | Results exist; visibility and feedback completeness need review. |
 | Randomization | Freeze delivered order and option order per attempt | Partial | EF-backed store builds and persists attempt order; tests need expansion. |
@@ -61,12 +61,16 @@ This file tracks exam-engine work against `documentation/exam-engine/README.md` 
   - Added a DB-backed completed-attempt read endpoint so completed student result cards load stored exam/attempt data instead of relying on in-memory state.
   - Verified with `npm run build` and `TMPDIR=/tmp npm test`.
   - Backend build could not be completed from WSL because Windows `dotnet.exe` failed before MSBuild with `UtilBindVsockAnyPort: socket failed 1`.
+- 2026-05-30: Added controller-level file-upload validation tests.
+  - Covered unsupported attempt-file content types and oversize files through `ExamsController.UploadAttemptFile`.
+  - Verified rejected uploads do not create saved student answers.
+  - Verified with `DOTNET_CLI_HOME=/tmp/dotnet-cli dotnet test tests/SchoolSystemTask.Tests/SchoolSystemTask.Tests.csproj -nologo --filter ExamEngineStoreTests`.
 
 ## Next Feature Queue
 
 1. Review and tighten exam-builder requirements against the design document.
 2. Add missing backend tests for attempt locking, randomization freeze, and grading.
-3. Complete explicit file-upload answer state transitions.
+3. Add frontend/browser interaction coverage for file-upload answer state transitions.
 4. Complete student result visibility around `markPublished`.
 5. Add frontend interaction tests for teacher dashboard filters and row actions.
 6. Replace temporary student-ID entry with authenticated student context once authentication is wired into the exam engine.

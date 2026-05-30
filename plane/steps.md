@@ -176,7 +176,7 @@ Agenda:
 | Markdown/math tests | Complete | `markdown-content.test.ts` exists. |
 | Randomization tests | Complete | Tests verify resumed attempts preserve the frozen delivered order and each student attempt keeps its own order. |
 | Attempt locking tests | Complete | Submitted and expired attempts reject later answer saves. |
-| File upload tests | In Progress | File-upload metadata save is locked after submit. Controller-level invalid type/oversize tests remain. |
+| File upload tests | Complete | File-upload metadata save is locked after submit, and controller tests cover invalid type and oversize rejection. |
 | Frontend interaction tests | In Progress | Markdown/math unit tests pass. Dashboard, builder, player, and submit interaction tests remain. |
 | Release checklist | In Progress | Frontend lint/build/tests and backend build/tests pass; manual browser QA remains. |
 
