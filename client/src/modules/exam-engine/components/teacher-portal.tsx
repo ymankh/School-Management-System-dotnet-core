@@ -64,6 +64,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/shared/components/ui/sheet"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
 import { Textarea } from "@/shared/components/ui/textarea"
 
 const questionTypes: QuestionType[] = [
@@ -420,30 +421,30 @@ function TeacherDashboard({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-md border">
-            <table className="w-full border-collapse text-sm">
-              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Exam Name</th>
-                  <th className="px-4 py-3 font-medium">Subject</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Questions</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Exam Name</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Questions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredExams.map((exam) => (
-                  <tr key={exam.id} className="border-t bg-card">
-                    <td className="px-4 py-3">
+                  <TableRow key={exam.id}>
+                    <TableCell>
                       <div className="font-medium">{exam.title}</div>
                       <div className="text-xs text-muted-foreground">{exam.className} • {formatDate(exam.startAtUtc)}</div>
-                    </td>
-                    <td className="px-4 py-3">{exam.subject}</td>
-                    <td className="px-4 py-3">{exam.mode}</td>
-                    <td className="px-4 py-3"><StatusBadge status={exam.status} /></td>
-                    <td className="px-4 py-3">{exam.questionCount}</td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell>{exam.subject}</TableCell>
+                    <TableCell>{exam.mode}</TableCell>
+                    <TableCell><StatusBadge status={exam.status} /></TableCell>
+                    <TableCell>{exam.questionCount}</TableCell>
+                    <TableCell>
                       <div className="flex justify-end gap-1">
                         <IconButton title="Preview" icon={Eye} onClick={() => openExam(exam.id, "builder")} />
                         <IconButton title="Edit" icon={Settings} onClick={() => openExam(exam.id, "builder")} />
@@ -457,11 +458,11 @@ function TeacherDashboard({
                         <IconButton title="Archive" icon={Archive} onClick={() => archiveExam(exam.id)} />
                         <IconButton title="Results" icon={ListChecks} onClick={() => openExam(exam.id, "grading")} />
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

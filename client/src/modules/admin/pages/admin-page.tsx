@@ -36,6 +36,7 @@ import { Input } from "@/shared/components/ui/input"
 import { Label } from "@/shared/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
 import { Textarea } from "@/shared/components/ui/textarea"
 
 type AdminPageProps = {
@@ -343,31 +344,31 @@ function UsersPanel({
         </CardHeader>
         <CardContent>
           <DataState isLoading={isLoading} error={error} empty={!users.length}>
-            <div className="overflow-auto rounded-lg border">
-              <table className="w-full min-w-[760px] border-collapse text-sm">
-                <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">User</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Student ID</th>
-                    <th className="px-4 py-3 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="rounded-lg border">
+              <Table className="min-w-[760px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Student ID</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {users.map((user) => {
                     const isEditing = editingUserId === user.id
 
                     return (
-                      <tr key={user.id} className="border-t bg-card">
-                        <td className="px-4 py-3">
+                      <TableRow key={user.id}>
+                        <TableCell>
                           {isEditing ? (
                             <Input value={editDraft.fullName} onChange={(event) => setEditDraft({ ...editDraft, fullName: event.target.value })} />
                           ) : (
                             <div className="font-medium">{user.fullName}</div>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           {isEditing ? (
                             <Input type="email" value={editDraft.email} onChange={(event) => setEditDraft({ ...editDraft, email: event.target.value })} />
                           ) : (
@@ -376,8 +377,8 @@ function UsersPanel({
                               {user.email}
                             </div>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           {isEditing ? (
                             <Select value={editDraft.role} onValueChange={(value) => setEditDraft({ ...editDraft, role: value as AuthRole })}>
                               <SelectTrigger className="w-36">
@@ -392,9 +393,9 @@ function UsersPanel({
                           ) : (
                             <RoleBadge role={user.role} />
                           )}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">{user.studentId ?? "—"}</td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{user.studentId ?? "—"}</TableCell>
+                        <TableCell>
                           <div className="flex justify-end gap-1">
                             {isEditing ? (
                               <>
@@ -412,12 +413,12 @@ function UsersPanel({
                               </>
                             )}
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </DataState>
         </CardContent>
@@ -547,45 +548,45 @@ function SubjectsPanel({
         </CardHeader>
         <CardContent>
           <DataState isLoading={isLoading} error={error} empty={!subjects.length}>
-            <div className="overflow-auto rounded-lg border">
-              <table className="w-full min-w-[760px] border-collapse text-sm">
-                <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Subject</th>
-                    <th className="px-4 py-3 font-medium">Code</th>
-                    <th className="px-4 py-3 font-medium">Description</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="rounded-lg border">
+              <Table className="min-w-[760px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {subjects.map((subject) => {
                     const isEditing = editingSubjectId === subject.id
 
                     return (
-                      <tr key={subject.id} className="border-t bg-card">
-                        <td className="px-4 py-3">
+                      <TableRow key={subject.id}>
+                        <TableCell>
                           {isEditing ? (
                             <Input value={editDraft.name} onChange={(event) => setEditDraft({ ...editDraft, name: event.target.value })} />
                           ) : (
                             <div className="font-medium">{subject.name}</div>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           {isEditing ? (
                             <Input value={editDraft.code} onChange={(event) => setEditDraft({ ...editDraft, code: event.target.value })} />
                           ) : (
                             <Badge variant="outline">{subject.code}</Badge>
                           )}
-                        </td>
-                        <td className="max-w-xs px-4 py-3">
+                        </TableCell>
+                        <TableCell className="max-w-xs">
                           {isEditing ? (
                             <Input value={editDraft.description} onChange={(event) => setEditDraft({ ...editDraft, description: event.target.value })} />
                           ) : (
                             <div className="truncate text-muted-foreground">{subject.description || "No description"}</div>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           {isEditing ? (
                             <label className="flex items-center gap-2">
                               <Checkbox
@@ -597,8 +598,8 @@ function SubjectsPanel({
                           ) : (
                             <Badge variant={subject.isActive ? "secondary" : "outline"}>{subject.isActive ? "Active" : "Inactive"}</Badge>
                           )}
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell>
                           <div className="flex justify-end gap-1">
                             {isEditing ? (
                               <>
@@ -616,12 +617,12 @@ function SubjectsPanel({
                               </>
                             )}
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </DataState>
         </CardContent>

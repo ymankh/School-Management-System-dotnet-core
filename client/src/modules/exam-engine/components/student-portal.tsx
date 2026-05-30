@@ -54,6 +54,7 @@ import {
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
+import { Checkbox } from "@/shared/components/ui/checkbox"
 import { Input } from "@/shared/components/ui/input"
 import {
   Select,
@@ -62,6 +63,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select"
+import { Textarea } from "@/shared/components/ui/textarea"
 import { cn } from "@/shared/lib/utils"
 
 export function StudentPortal({
@@ -776,8 +778,8 @@ function QuestionAnswerInput({
   }
 
   return (
-    <textarea
-      className="min-h-48 w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+    <Textarea
+      className="min-h-48"
       disabled={locked}
       placeholder="Type your answer..."
       value={textAnswer}
@@ -954,7 +956,7 @@ function ReviewSubmit({
           ))}
         </div>
         <label className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm">
-          <input className="mt-1" checked={confirmed} type="checkbox" onChange={(event) => setConfirmed(event.target.checked)} />
+          <Checkbox className="mt-1" checked={confirmed} onCheckedChange={(checked) => setConfirmed(checked === true)} />
           <span>
             <span className="block font-medium">I understand this is the final submission.</span>
             <span className="text-muted-foreground">After submitting, answers are locked and unanswered questions are submitted blank.</span>
