@@ -44,6 +44,8 @@ Client: http://localhost:5174
 Postgres: managed by Aspire
 ```
 
+The Aspire AppHost installs the client npm packages before starting the Vite dev server.
+
 ### API Only
 
 From the repository root:
