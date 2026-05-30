@@ -213,7 +213,8 @@ function ExamRoute() {
 }
 
 function AdminRoute() {
-  return <AdminPage />
+  const { user } = rootRoute.useRouteContext()
+  return <AdminPage currentUser={user!} onLogout={useLogout()} />
 }
 
 function PrincipalRoute() {

@@ -47,6 +47,7 @@ import { getExamGroups, getExamQuestions, getGroupQuestions } from "@/modules/ex
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
+import { Checkbox } from "@/shared/components/ui/checkbox"
 import { Input } from "@/shared/components/ui/input"
 import {
   Select,
@@ -63,6 +64,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/shared/components/ui/sheet"
+import { Textarea } from "@/shared/components/ui/textarea"
 
 const questionTypes: QuestionType[] = [
   "MultipleChoice",
@@ -801,8 +803,8 @@ function ExamBuilder({
                                 Insert file
                               </Button>
                             </div>
-                            <textarea
-                              className="min-h-40 w-full rounded-md border bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30"
+                            <Textarea
+                              className="min-h-40 font-mono"
                               value={question.bodyMarkdown}
                               onChange={(event) =>
                                 updateQuestionDraft(group.id, question.id, { bodyMarkdown: event.target.value })
@@ -918,12 +920,11 @@ function ExamBuilder({
             <div className="grid gap-3 md:grid-cols-2">
               {filteredQuestionBank.map((item) => (
                 <label key={item.id} className="flex gap-3 rounded-md border p-3 text-sm">
-                  <input
+                  <Checkbox
                     checked={selectedBankItems.includes(item.id)}
-                    type="checkbox"
-                    onChange={(event) =>
+                    onCheckedChange={(checked) =>
                       setSelectedBankItems((current) =>
-                        event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id),
+                        checked === true ? [...current, item.id] : current.filter((id) => id !== item.id),
                       )
                     }
                   />
@@ -1059,26 +1060,23 @@ function ExamBuilder({
           </div>
           <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
             Visible to students
-            <input
+            <Checkbox
               checked={editableExam.isVisible}
-              type="checkbox"
-              onChange={(event) => setEditableExam((current) => ({ ...current, isVisible: event.target.checked }))}
+              onCheckedChange={(checked) => setEditableExam((current) => ({ ...current, isVisible: checked === true }))}
             />
           </label>
           <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
             Shuffle groups
-            <input
+            <Checkbox
               checked={editableExam.shuffleGroups}
-              type="checkbox"
-              onChange={(event) => setEditableExam((current) => ({ ...current, shuffleGroups: event.target.checked }))}
+              onCheckedChange={(checked) => setEditableExam((current) => ({ ...current, shuffleGroups: checked === true }))}
             />
           </label>
           <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
             Focus mode
-            <input
+            <Checkbox
               checked={editableExam.focusModeEnabled}
-              type="checkbox"
-              onChange={(event) => setEditableExam((current) => ({ ...current, focusModeEnabled: event.target.checked }))}
+              onCheckedChange={(checked) => setEditableExam((current) => ({ ...current, focusModeEnabled: checked === true }))}
             />
           </label>
           <SettingRow label="Duration" value={`${durationMinutes(editableExam.startAtUtc, editableExam.endAtUtc)} minutes`} />
@@ -1118,8 +1116,8 @@ function ExamBuilder({
           </label>
           <label className="block text-xs font-medium">
             Description Markdown
-            <textarea
-              className="mt-1 min-h-28 w-full rounded-md border bg-background p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-ring/30"
+            <Textarea
+              className="mt-1 min-h-28 font-mono"
               placeholder="Optional instructions or scope for this skill..."
               value={skillDraft.descriptionMarkdown}
               onChange={(event) => setSkillDraft((current) => ({ ...current, descriptionMarkdown: event.target.value }))}
@@ -1213,12 +1211,11 @@ function ExamBuilder({
               </label>
             )}
             <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
-              <input
+              <Checkbox
                 checked={groupSkillDraft.shuffleQuestions}
                 className="mt-1"
-                type="checkbox"
-                onChange={(event) =>
-                  setGroupSkillDraft((current) => current ? { ...current, shuffleQuestions: event.target.checked } : current)
+                onCheckedChange={(checked) =>
+                  setGroupSkillDraft((current) => current ? { ...current, shuffleQuestions: checked === true } : current)
                 }
               />
               <span>
@@ -1359,10 +1356,9 @@ function QuestionAnswerKeyEditor({
                 onChange={(event) => updateOption(option.id, { textMarkdown: event.target.value })}
               />
               <label className="flex items-center gap-2 rounded-md border bg-background px-3 text-xs">
-                <input
+                <Checkbox
                   checked={option.isCorrect}
-                  type="checkbox"
-                  onChange={(event) => updateOption(option.id, { isCorrect: event.target.checked })}
+                  onCheckedChange={(checked) => updateOption(option.id, { isCorrect: checked === true })}
                 />
                 Correct
               </label>
@@ -1393,8 +1389,8 @@ function QuestionAnswerKeyEditor({
       {(question.type === "ShortAnswer" || question.type === "FillInTheBlank") && (
         <label className="text-xs font-medium">
           Accepted answers
-          <textarea
-            className="mt-1 min-h-24 w-full rounded-md border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+          <Textarea
+            className="mt-1 min-h-24"
             placeholder="One accepted answer per line"
             value={question.acceptedAnswers.join("\n")}
             onChange={(event) =>
@@ -1427,8 +1423,8 @@ function QuestionAnswerKeyEditor({
       {question.type === "Ordering" && (
         <label className="text-xs font-medium">
           Correct order
-          <textarea
-            className="mt-1 min-h-24 w-full rounded-md border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+          <Textarea
+            className="mt-1 min-h-24"
             placeholder="One item per line in the correct order"
             value={question.orderingItems.join("\n")}
             onChange={(event) =>
