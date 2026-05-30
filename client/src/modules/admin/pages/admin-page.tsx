@@ -218,6 +218,7 @@ function UsersPanel({
   users: AdminUser[]
 }) {
   const queryClient = useQueryClient()
+  const adminCount = users.filter((user) => user.role === "admin").length
   const [draft, setDraft] = useState(defaultUserDraft)
   const [editingUserId, setEditingUserId] = useState<number | null>(null)
   const [editDraft, setEditDraft] = useState({ fullName: "", email: "", role: "student" as AuthRole })
@@ -358,6 +359,7 @@ function UsersPanel({
                 <TableBody>
                   {users.map((user) => {
                     const isEditing = editingUserId === user.id
+                    const isOnlyAdmin = user.role === "admin" && adminCount === 1
 
                     return (
                       <TableRow key={user.id}>
@@ -407,7 +409,13 @@ function UsersPanel({
                                 <Button size="icon-sm" variant="ghost" title="Edit user" onClick={() => startEditing(user)}>
                                   <Pencil className="size-4" aria-hidden="true" />
                                 </Button>
-                                <Button size="icon-sm" variant="destructive" title="Delete user" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(user.id)}>
+                                <Button
+                                  size="icon-sm"
+                                  variant="destructive"
+                                  title={isOnlyAdmin ? "Cannot delete the only admin" : "Delete user"}
+                                  disabled={deleteMutation.isPending || isOnlyAdmin}
+                                  onClick={() => deleteMutation.mutate(user.id)}
+                                >
                                   <Trash2 className="size-4" aria-hidden="true" />
                                 </Button>
                               </>

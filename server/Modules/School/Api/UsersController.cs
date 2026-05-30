@@ -141,6 +141,11 @@ public sealed class UsersController(ApplicationDbContext db) : ControllerBase
             return NotFound(new { error = "User was not found." });
         }
 
+        if (user.Role == AuthRoles.Admin && db.Users.Count(item => item.Role == AuthRoles.Admin) == 1)
+        {
+            return Conflict(new { error = "You cannot delete the only admin account." });
+        }
+
         db.Users.Remove(user);
         db.SaveChanges();
         return NoContent();

@@ -68,6 +68,29 @@ public class UsersControllerTests
         Assert.Equal(1, dto.StudentId);
     }
 
+    [Fact]
+    public void DeleteUser_RejectsDeletingOnlyAdmin()
+    {
+        using var database = CreateDatabase();
+        var admin = new AuthUser
+        {
+            FullName = "Admin User",
+            Email = "admin@example.com",
+            PasswordHash = "hash",
+            PasswordSalt = "salt",
+            Role = AuthRoles.Admin,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+        database.Context.Users.Add(admin);
+        database.Context.SaveChanges();
+        var controller = new UsersController(database.Context);
+
+        var result = controller.DeleteUser(admin.Id);
+
+        Assert.IsType<ConflictObjectResult>(result);
+        Assert.Single(database.Context.Users);
+    }
+
     private static TestDatabase CreateDatabase()
     {
         var connection = new SqliteConnection("DataSource=:memory:");
