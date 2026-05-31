@@ -20,7 +20,7 @@ Status values: `Not started`, `In progress`, `Done`, `Blocked`.
 | 14 | Done | Important | Performance | Production app ships as one large JS chunk. | Architecture fix |
 | 15 | Done | Important | Performance | Landing hero image asset is heavy. | Asset/performance fix |
 | 16 | Done | Nice to improve | Maintainability | Portal files are oversized and hard to maintain. | Component fix |
-| 17 | In progress | Nice to improve | Content | Marketing copy is generic and includes unverifiable claims. | Content fix |
+| 17 | Done | Nice to improve | Content | Marketing copy is generic and includes unverifiable claims. | Content fix |
 
 ## Update log
 
@@ -42,3 +42,4 @@ Status values: `Not started`, `In progress`, `Done`, `Blocked`.
 - 2026-05-31: Completed ID 14. Route-level lazy loading splits the previous single app chunk into route chunks; the main JS bundle dropped to 385.49 kB in the production build. Started ID 15.
 - 2026-05-31: Completed ID 15. Converted the landing/auth hero image from 1,567,168-byte PNG to 56,274-byte WebP and updated imports. Started ID 16.
 - 2026-05-31: Completed ID 16. Extracted student answer rendering and ordering controls into `student-answer-input.tsx`, reducing the student portal page from 1058 lines to 619 lines. Started ID 17.
+- 2026-05-31: Completed ID 17. Replaced generic and unverifiable landing copy with concrete product language tied to records, roles, exams, grading, and student work.

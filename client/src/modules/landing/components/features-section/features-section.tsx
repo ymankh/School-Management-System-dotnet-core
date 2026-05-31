@@ -50,11 +50,11 @@ function FeaturesSection() {
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold tracking-normal text-foreground">
-            Academic Precision, Simplified
+            Records, exams, and access control in one workflow
           </h2>
           <p className="mt-5 text-base leading-7 text-muted-foreground">
-            Our modular architecture adapts to your institution's specific workflows,
-            replacing chaotic spreadsheets with organized clarity.
+            Keep school data, exam setup, and role-specific dashboards aligned without
+            maintaining parallel spreadsheets.
           </p>
         </div>
 

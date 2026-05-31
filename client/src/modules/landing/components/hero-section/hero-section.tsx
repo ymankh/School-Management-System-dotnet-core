@@ -13,14 +13,13 @@ function HeroSection() {
       <div className="mx-auto grid min-h-[690px] max-w-7xl items-center gap-12 px-5 py-20 sm:px-6 lg:grid-cols-[0.94fr_1.06fr] lg:px-8 lg:py-24">
         <div className="max-w-2xl">
           <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-normal text-foreground sm:text-6xl lg:text-7xl">
-            The Ultimate Solution for{" "}
-            <span className="text-primary">Modern Schools</span>
+            School operations,{" "}
+            <span className="text-primary">without spreadsheet drift</span>
           </h1>
 
           <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Streamline administration, empower educators, and enhance student
-            outcomes with our comprehensive, quiet-UI academic management platform.
-            Built for precision.
+            Manage roles, subjects, exams, grading, and student work in one focused
+            workspace backed by the application database.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -54,7 +53,7 @@ function HeroSection() {
                 </Avatar>
               ))}
             </AvatarGroup>
-            <span>Trusted by 500+ academic institutions globally.</span>
+            <span>Built for schools that need clear records, controlled roles, and exam workflows.</span>
           </div>
         </div>
 
