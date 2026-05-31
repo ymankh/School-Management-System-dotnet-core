@@ -137,6 +137,7 @@ Use `shared/` for:
 
 * Generic UI components
 * shadcn/ui components
+* Shared dashboard layout components
 * Generic hooks
 * Generic utilities
 * API infrastructure
@@ -144,6 +145,12 @@ Use `shared/` for:
 * Global constants
 * Permission helpers
 * Layout components
+
+Dashboard pages for `admin`, `principal`, `teacher`, `student`, and `parent` should use
+`shared/components/dashboard-shell.tsx` for the common page frame. The shell owns the
+collapsible sidebar, role footer, logout affordance, page header, and page-list navigation.
+Role modules should pass page definitions or route-aware navigation items into the shell
+instead of rebuilding sidebar/header layout locally.
 
 Do not put feature-specific business logic in `shared/`.
 

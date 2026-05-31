@@ -27,25 +27,49 @@ export type DashboardNavItem = {
   onClick: () => void
 }
 
+export type DashboardPageItem = {
+  content: ReactNode
+  icon: LucideIcon
+  id: string
+  label: string
+}
+
 type DashboardShellProps = {
-  children: ReactNode
+  activePage?: string
+  children?: ReactNode
+  contentClassName?: string
   currentUser?: AuthUser
   description?: string
-  navItems: DashboardNavItem[]
+  navItems?: DashboardNavItem[]
+  onPageChange?: (page: string) => void
   onLogout?: () => void
+  pages?: DashboardPageItem[]
   sectionLabel?: string
   title: string
 }
 
 function DashboardShell({
+  activePage,
   children,
+  contentClassName,
   currentUser,
   description,
   navItems,
+  onPageChange,
   onLogout,
+  pages,
   sectionLabel = "Dashboard",
   title,
 }: DashboardShellProps) {
+  const activeDashboardPage = pages?.find((page) => page.id === activePage) ?? pages?.[0]
+  const content = activeDashboardPage?.content ?? children
+  const navigationItems = navItems ?? pages?.map((page) => ({
+    active: activeDashboardPage?.id === page.id,
+    icon: page.icon,
+    label: page.label,
+    onClick: () => onPageChange?.(page.id),
+  })) ?? []
+
   return (
     <TooltipProvider>
       <SidebarProvider defaultOpen={false}>
@@ -71,7 +95,7 @@ function DashboardShell({
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navItems.map((item) => {
+                  {navigationItems.map((item) => {
                     const Icon = item.icon
 
                     return (
@@ -125,7 +149,7 @@ function DashboardShell({
               {description && <p className="text-xs text-muted-foreground">{description}</p>}
             </div>
           </header>
-          {children}
+          {contentClassName ? <div className={contentClassName}>{content}</div> : content}
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

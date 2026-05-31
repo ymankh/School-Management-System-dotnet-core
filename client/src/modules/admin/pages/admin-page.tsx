@@ -87,98 +87,108 @@ function AdminPage({ currentUser, onLogout }: AdminPageProps) {
     .slice(0, 5)
 
   const navItems = [
-    { active: activePage === "overview", icon: ShieldCheck, label: "Overview", onClick: () => setActivePage("overview" as const) },
-    { active: activePage === "users", icon: UsersRound, label: "Users", onClick: () => setActivePage("users" as const) },
-    { active: activePage === "subjects", icon: BookOpen, label: "Subjects", onClick: () => setActivePage("subjects" as const) },
+    {
+      content: (
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard icon={UsersRound} label="Total Users" value={users.length} />
+            <MetricCard icon={ShieldCheck} label="Admins" value={roleCounts.admin ?? 0} />
+            <MetricCard icon={BookOpen} label="Active Subjects" value={activeSubjects} />
+            <MetricCard icon={RefreshCw} label="Inactive Subjects" value={inactiveSubjects} />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Role Distribution</CardTitle>
+                <CardDescription>Current user count by portal role.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-2">
+                  {roleOptions.map((role) => (
+                    <div key={role} className="rounded-lg border bg-background p-3">
+                      <div className="text-xs uppercase text-muted-foreground">{formatRole(role)}</div>
+                      <div className="mt-2 text-2xl font-semibold">{roleCounts[role] ?? 0}</div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Users</CardTitle>
+                <CardDescription>Newest accounts in the system.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DataState isLoading={usersQuery.isLoading} error={usersQuery.error} empty={!recentUsers.length}>
+                  <div className="space-y-3">
+                    {recentUsers.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{user.fullName}</div>
+                          <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+                        </div>
+                        <RoleBadge role={user.role} />
+                      </div>
+                    ))}
+                  </div>
+                </DataState>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ),
+      icon: ShieldCheck,
+      id: "overview",
+      label: "Overview",
+    },
+    {
+      content: (
+        <UsersPanel
+          roleFilter={roleFilter}
+          search={userSearch}
+          users={users}
+          error={usersQuery.error}
+          isLoading={usersQuery.isLoading}
+          setRoleFilter={setRoleFilter}
+          setSearch={setUserSearch}
+        />
+      ),
+      icon: UsersRound,
+      id: "users",
+      label: "Users",
+    },
+    {
+      content: (
+        <SubjectsPanel
+          error={subjectsQuery.error}
+          includeInactive={includeInactive}
+          isLoading={subjectsQuery.isLoading}
+          search={subjectSearch}
+          setIncludeInactive={setIncludeInactive}
+          setSearch={setSubjectSearch}
+          subjects={subjects}
+        />
+      ),
+      icon: BookOpen,
+      id: "subjects",
+      label: "Subjects",
+    },
   ]
 
   return (
     <DashboardShell
       currentUser={currentUser}
       description="Manage users, roles, and academic subjects."
-      navItems={navItems}
+      activePage={activePage}
+      contentClassName="mx-auto w-full max-w-7xl space-y-4 p-4 lg:p-6"
+      onPageChange={(page) => setActivePage(page as "overview" | "users" | "subjects")}
       onLogout={onLogout}
+      pages={navItems}
       sectionLabel="Admin"
       title="Admin Portal"
-    >
-      <div className="mx-auto w-full max-w-7xl space-y-4 p-4 lg:p-6">
-        {activePage === "overview" && (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <MetricCard icon={UsersRound} label="Total Users" value={users.length} />
-              <MetricCard icon={ShieldCheck} label="Admins" value={roleCounts.admin ?? 0} />
-              <MetricCard icon={BookOpen} label="Active Subjects" value={activeSubjects} />
-              <MetricCard icon={RefreshCw} label="Inactive Subjects" value={inactiveSubjects} />
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Role Distribution</CardTitle>
-                  <CardDescription>Current user count by portal role.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-2">
-                    {roleOptions.map((role) => (
-                      <div key={role} className="rounded-lg border bg-background p-3">
-                        <div className="text-xs uppercase text-muted-foreground">{formatRole(role)}</div>
-                        <div className="mt-2 text-2xl font-semibold">{roleCounts[role] ?? 0}</div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Users</CardTitle>
-                  <CardDescription>Newest accounts in the system.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <DataState isLoading={usersQuery.isLoading} error={usersQuery.error} empty={!recentUsers.length}>
-                    <div className="space-y-3">
-                      {recentUsers.map((user) => (
-                        <div key={user.id} className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate font-medium">{user.fullName}</div>
-                            <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-                          </div>
-                          <RoleBadge role={user.role} />
-                        </div>
-                      ))}
-                    </div>
-                  </DataState>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {activePage === "users" && (
-          <UsersPanel
-            roleFilter={roleFilter}
-            search={userSearch}
-            users={users}
-            error={usersQuery.error}
-            isLoading={usersQuery.isLoading}
-            setRoleFilter={setRoleFilter}
-            setSearch={setUserSearch}
-          />
-        )}
-
-        {activePage === "subjects" && (
-          <SubjectsPanel
-            error={subjectsQuery.error}
-            includeInactive={includeInactive}
-            isLoading={subjectsQuery.isLoading}
-            search={subjectSearch}
-            setIncludeInactive={setIncludeInactive}
-            setSearch={setSubjectSearch}
-            subjects={subjects}
-          />
-        )}
-      </div>
-    </DashboardShell>
+    />
   )
 }
 

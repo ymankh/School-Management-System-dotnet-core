@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { BookOpen, CalendarDays, LayoutDashboard, UsersRound } from "lucide-react"
 
 import type { AuthUser } from "@/modules/auth"
@@ -10,23 +11,10 @@ type ParentPageProps = {
 }
 
 function ParentPage({ currentUser, onLogout }: ParentPageProps) {
-  const navItems = [
-    { active: true, icon: LayoutDashboard, label: "Overview", onClick: () => undefined },
-    { active: false, icon: UsersRound, label: "Children", onClick: () => undefined },
-    { active: false, icon: BookOpen, label: "Exams", onClick: () => undefined },
-    { active: false, icon: CalendarDays, label: "Schedule", onClick: () => undefined },
-  ]
-
-  return (
-    <DashboardShell
-      currentUser={currentUser}
-      description="Linked child academic information will appear here."
-      navItems={navItems}
-      onLogout={onLogout}
-      sectionLabel="Parent"
-      title="Parent Portal"
-    >
-      <div className="p-4 lg:p-6">
+  const [activePage, setActivePage] = useState("overview")
+  const pages = [
+    {
+      content: (
         <Card>
           <CardHeader>
             <CardTitle>Family Access</CardTitle>
@@ -35,8 +23,39 @@ function ParentPage({ currentUser, onLogout }: ParentPageProps) {
             Parent-specific child selection, classes, exams, and results are not connected yet.
           </CardContent>
         </Card>
-      </div>
-    </DashboardShell>
+      ),
+      icon: LayoutDashboard,
+      id: "overview",
+      label: "Overview",
+    },
+    { content: <Placeholder title="Children" />, icon: UsersRound, id: "children", label: "Children" },
+    { content: <Placeholder title="Exams" />, icon: BookOpen, id: "exams", label: "Exams" },
+    { content: <Placeholder title="Schedule" />, icon: CalendarDays, id: "schedule", label: "Schedule" },
+  ]
+
+  return (
+    <DashboardShell
+      currentUser={currentUser}
+      description="Linked child academic information will appear here."
+      activePage={activePage}
+      contentClassName="p-4 lg:p-6"
+      onPageChange={setActivePage}
+      onLogout={onLogout}
+      pages={pages}
+      sectionLabel="Parent"
+      title="Parent Portal"
+    />
+  )
+}
+
+function Placeholder({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">This page is not connected yet.</CardContent>
+    </Card>
   )
 }
 

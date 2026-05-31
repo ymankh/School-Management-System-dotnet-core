@@ -17,6 +17,7 @@ Routes should be thin.
 Modules should own business logic.
 Modules can contain nested modules.
 Shared should stay generic.
+Dashboards should use shared/components/dashboard-shell.tsx for the common frame.
 Cross-module pages should compose, not duplicate.
 Permissions should be centralized.
 TanStack Query logic should live inside the owning module.

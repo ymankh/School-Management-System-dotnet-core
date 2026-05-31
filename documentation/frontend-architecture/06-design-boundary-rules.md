@@ -206,6 +206,22 @@ Use local state for UI state:
 
 Do not duplicate server state in global stores.
 
+Dashboard page selection is UI state and should live in the role page or in the router,
+but the dashboard frame itself should come from `DashboardShell`.
+
+Good:
+
+```tsx
+<DashboardShell
+  activePage={activePage}
+  onPageChange={setActivePage}
+  pages={pages}
+  title="Admin Portal"
+/>
+```
+
+Avoid rebuilding the same sidebar/header/logout layout inside each dashboard module.
+
 ## 10. Query keys belong to the owning module
 
 Bad:

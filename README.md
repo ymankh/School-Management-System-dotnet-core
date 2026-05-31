@@ -1,6 +1,6 @@
 # School System Task
 
-A school management web app with a React frontend and an ASP.NET Core API backend. The current focus is the exam portal: teachers can create and manage exams, students can take exams, and admins have a placeholder portal for future modules.
+A school management web app with a React frontend and an ASP.NET Core API backend. The current focus is role-based school dashboards: admins manage users and subjects, teachers create and manage exams, and students take exams.
 
 ## Project Structure
 
@@ -13,8 +13,9 @@ A school management web app with a React frontend and an ASP.NET Core API backen
 ## Current Features
 
 - Landing page, registration, login, and local session handling.
-- Role-based portal routing for `admin`, `teacher`, and `student`.
-- Collapsible shadcn sidebar navigation.
+- Role-based portal routing for `admin`, `principal`, `teacher`, `student`, and `parent`.
+- Shared dashboard shell with collapsible shadcn sidebar navigation for all role portals.
+- Admin dashboard with overview metrics, user/role management, and subject management.
 - Teacher exam dashboard with filtering, exam publishing, archiving, duplication, grading, mark publishing, attachments, and question-bank import.
 - Student exam list, attempt start/resume, autosaved answers, file upload questions, submission, and results.
 - EF Core migrations with SQLite for local development and PostgreSQL for Aspire/default production-style configuration.

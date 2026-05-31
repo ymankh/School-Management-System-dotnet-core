@@ -24,7 +24,9 @@ Admin-managed role assignment will be added with the users management API and ad
 - `student` users open the student portal.
 - `parent` users open the parent portal area.
 
-Each role is routed to its own portal identity. Placeholder portals remain for roles whose full features are not connected yet.
+Each role is routed to its own portal identity. All role portals use the shared `DashboardShell`
+frame with a collapsible left sidebar, role/user footer, logout action, and page navigation.
+Placeholder pages remain for roles whose full features are not connected yet.
 
 The frontend route tree is handled by TanStack Router. Manual `window.location`, `pushState`, and `popstate` routing has been removed from `App`.
 
@@ -41,7 +43,9 @@ Canonical portal routes:
 
 The legacy `/exam` route remains only as a compatibility route. It redirects the authenticated user to their own role-specific portal route.
 
-Dashboard tabs are real pages, not local-only UI state.
+Dashboard tabs/pages are represented as sidebar pages in the shared dashboard shell. Teacher
+and student pages are backed by role routes; admin, parent, and principal pages can use local
+page state until their deeper routes are needed.
 
 Teacher pages:
 
@@ -71,6 +75,10 @@ Frontend user-type module folders:
 - `client/src/modules/parent/`
 
 Exam pages remain under `client/src/modules/exam-engine/` and are consumed by the teacher and student user-type pages. The exam module no longer owns admin, principal, or parent portal placeholders.
+
+Shared dashboard layout lives at `client/src/shared/components/dashboard-shell.tsx`. New role
+dashboard modules should pass page definitions or route-aware navigation items into this shell
+instead of rebuilding sidebar/header layout.
 
 Error pages live under `client/src/modules/errors/`:
 

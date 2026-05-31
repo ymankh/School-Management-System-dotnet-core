@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { BookOpen, GraduationCap, LayoutDashboard, UsersRound } from "lucide-react"
 
 import type { AuthUser } from "@/modules/auth"
@@ -10,23 +11,10 @@ type PrincipalPageProps = {
 }
 
 function PrincipalPage({ currentUser, onLogout }: PrincipalPageProps) {
-  const navItems = [
-    { active: true, icon: LayoutDashboard, label: "Overview", onClick: () => undefined },
-    { active: false, icon: GraduationCap, label: "Classes", onClick: () => undefined },
-    { active: false, icon: UsersRound, label: "Teachers", onClick: () => undefined },
-    { active: false, icon: BookOpen, label: "Subjects", onClick: () => undefined },
-  ]
-
-  return (
-    <DashboardShell
-      currentUser={currentUser}
-      description="Academic management modules will appear here."
-      navItems={navItems}
-      onLogout={onLogout}
-      sectionLabel="Principal"
-      title="Principal Portal"
-    >
-      <div className="p-4 lg:p-6">
+  const [activePage, setActivePage] = useState("overview")
+  const pages = [
+    {
+      content: (
         <Card>
           <CardHeader>
             <CardTitle>Academic Management</CardTitle>
@@ -35,8 +23,39 @@ function PrincipalPage({ currentUser, onLogout }: PrincipalPageProps) {
             Principal-specific class, teacher, student, and subject tools are not connected yet.
           </CardContent>
         </Card>
-      </div>
-    </DashboardShell>
+      ),
+      icon: LayoutDashboard,
+      id: "overview",
+      label: "Overview",
+    },
+    { content: <Placeholder title="Classes" />, icon: GraduationCap, id: "classes", label: "Classes" },
+    { content: <Placeholder title="Teachers" />, icon: UsersRound, id: "teachers", label: "Teachers" },
+    { content: <Placeholder title="Subjects" />, icon: BookOpen, id: "subjects", label: "Subjects" },
+  ]
+
+  return (
+    <DashboardShell
+      currentUser={currentUser}
+      description="Academic management modules will appear here."
+      activePage={activePage}
+      contentClassName="p-4 lg:p-6"
+      onPageChange={setActivePage}
+      onLogout={onLogout}
+      pages={pages}
+      sectionLabel="Principal"
+      title="Principal Portal"
+    />
+  )
+}
+
+function Placeholder({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">This page is not connected yet.</CardContent>
+    </Card>
   )
 }
 
