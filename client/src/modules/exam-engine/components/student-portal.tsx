@@ -503,14 +503,15 @@ function QuestionAnswerInput({
       : getQuestionOptions(question)
 
     return (
-      <div className="space-y-2">
+      <div aria-label="Multiple choice answer options" className="space-y-2" role="radiogroup">
         {orderedOptions.map((option) => {
           const selected = parsedAnswer?.selectedOptionId === option.id
 
           return (
             <button
               key={option.id}
-              aria-pressed={selected}
+              aria-checked={selected}
+              role="radio"
               className={cn(
                 "flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm transition hover:bg-muted",
                 selected && "border-primary bg-primary/10 ring-2 ring-ring ring-offset-2 ring-offset-background",
@@ -537,14 +538,15 @@ function QuestionAnswerInput({
 
   if (question.type === "TrueFalse") {
     return (
-      <div className="flex gap-2">
+      <div aria-label="True or false answer options" className="flex gap-2" role="radiogroup">
         {[true, false].map((value) => {
           const selected = parsedAnswer?.value === value
 
           return (
             <Button
               key={String(value)}
-              aria-pressed={selected}
+              aria-checked={selected}
+              role="radio"
               className={cn(
                 "min-w-24 justify-center",
                 selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
