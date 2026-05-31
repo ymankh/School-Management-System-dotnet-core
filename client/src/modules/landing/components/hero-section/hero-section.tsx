@@ -1,4 +1,5 @@
 import { ArrowRight, BarChart3, CirclePlay } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 
 import heroImage from "@/assets/images/education-dashboard-hero.webp"
 import { Avatar, AvatarFallback, AvatarGroup } from "@/shared/components/ui/avatar"
@@ -24,10 +25,10 @@ function HeroSection() {
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Button asChild className="h-11 px-6">
-              <a href="/register">
+              <Link to="/register">
                 Start Free Trial
                 <ArrowRight className="size-4" aria-hidden="true" />
-              </a>
+              </Link>
             </Button>
             <Button asChild className="h-11 gap-2 px-6" variant="outline">
               <a href="#contact">

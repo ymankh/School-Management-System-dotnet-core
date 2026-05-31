@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router"
+
 import { CheckCircle2 } from "lucide-react"
 
 import { Badge } from "@/shared/components/ui/badge"
@@ -135,9 +137,11 @@ function PricingCards({ billingCycle }: PricingCardsProps) {
             )}
 
             <Button asChild className="mt-8 w-full" variant={plan.featured ? "default" : "outline"}>
-              <a href={plan.name === "Enterprise" ? "#contact" : "/register"}>
-                {plan.name === "Enterprise" ? "Contact Sales" : "Start Plan"}
-              </a>
+              {plan.name === "Enterprise" ? (
+                <a href="#contact">Contact Sales</a>
+              ) : (
+                <Link to="/register">Start Plan</Link>
+              )}
             </Button>
 
             <ul className="mt-8 space-y-4 text-sm text-muted-foreground">

@@ -1,4 +1,5 @@
 import { GraduationCap, Mail } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 
 import { Separator } from "@/shared/components/ui/separator"
 
@@ -25,10 +26,10 @@ function SiteFooter() {
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-10 pb-12 md:grid-cols-[1.3fr_1fr_1fr]">
           <div>
-            <a className="flex items-center gap-2 font-semibold tracking-normal" href="/">
+            <Link className="flex items-center gap-2 font-semibold tracking-normal" to="/">
               <GraduationCap className="size-5 text-muted-foreground" aria-hidden="true" />
               EduManager
-            </a>
+            </Link>
             <p className="mt-6 max-w-sm text-sm leading-6 text-muted-foreground">
               The modern academic management system designed for precision,
               clarity, and efficiency in educational environments.

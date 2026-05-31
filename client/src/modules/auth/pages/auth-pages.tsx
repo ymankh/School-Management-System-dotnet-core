@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react"
+import { Link } from "@tanstack/react-router"
 import { ArrowRight, BookOpenCheck, GraduationCap, LockKeyhole, Mail, UserRound } from "lucide-react"
 
 import { loginAccount, registerAccount, type AuthUser } from "@/modules/auth/api/local-auth"
@@ -31,10 +32,10 @@ function AuthShell({ children, eyebrow, title, description }: AuthShellProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-br from-foreground/95 via-foreground/62 to-primary/35" />
           <div className="relative flex min-h-screen flex-col justify-between p-10">
-            <a className="flex w-fit items-center gap-2 font-semibold tracking-normal" href="/">
+            <Link className="flex w-fit items-center gap-2 font-semibold tracking-normal" to="/">
               <GraduationCap className="size-6" aria-hidden="true" />
               EduManager
-            </a>
+            </Link>
             <div className="max-w-xl pb-8">
               <div className="mb-4 flex w-fit items-center gap-2 rounded-lg bg-background/12 px-3 py-1.5 text-sm">
                 <BookOpenCheck className="size-4" aria-hidden="true" />
@@ -53,10 +54,10 @@ function AuthShell({ children, eyebrow, title, description }: AuthShellProps) {
 
         <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-6 lg:px-10">
           <div className="w-full max-w-md">
-            <a className="mb-8 flex w-fit items-center gap-2 font-semibold tracking-normal lg:hidden" href="/">
+            <Link className="mb-8 flex w-fit items-center gap-2 font-semibold tracking-normal lg:hidden" to="/">
               <GraduationCap className="size-6 text-primary" aria-hidden="true" />
               EduManager
-            </a>
+            </Link>
 
             <div className="mb-6">
               <p className="text-sm font-medium text-primary">{eyebrow}</p>
@@ -166,9 +167,9 @@ function LoginPage({ onAuthenticated }: AuthPageProps) {
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
             Need an account?{" "}
-            <a className="font-medium text-primary underline-offset-4 hover:underline" href="/register">
+            <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/register">
               Create one
-            </a>
+            </Link>
           </p>
         </CardContent>
       </Card>
@@ -280,9 +281,9 @@ function RegisterPage({ onAuthenticated }: AuthPageProps) {
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <a className="font-medium text-primary underline-offset-4 hover:underline" href="/login">
+            <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/login">
               Log in
-            </a>
+            </Link>
           </p>
         </CardContent>
       </Card>
