@@ -382,7 +382,7 @@ function ExamPlayer({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {exam.focusModeEnabled && <Badge className="gap-1" variant="secondary"><Eye className="size-3" /> Focus Mode Active</Badge>}
-          <Badge className="gap-1 border-destructive/30 bg-destructive/10 text-destructive" variant="outline"><Clock className="size-3" /> {remainingTime}</Badge>
+          <Badge aria-live="polite" className="gap-1 border-destructive/30 bg-destructive/10 text-destructive" role="timer" variant="outline"><Clock className="size-3" /> {remainingTime}</Badge>
           <Button variant="outline" size="sm" onClick={onShowReview}><ListChecks className="size-4" /> Review</Button>
         </div>
       </div>
@@ -426,7 +426,7 @@ function ExamPlayer({
             />
 
             <div className="flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
-              <span>Autosave: {answer ? `saved ${formatTime(answer.savedAtUtc)}` : "not saved yet"}</span>
+              <span aria-live="polite">Autosave: {answer ? `saved ${formatTime(answer.savedAtUtc)}` : "not saved yet"}</span>
               {showManualSave && (
                 <Button disabled={locked} size="sm" onClick={() => void onSaveAnswer(selectedQuestion.id, JSON.stringify({ value: textAnswer }), answer?.flaggedForReview)}>
                   <Save className="size-4" />
@@ -656,12 +656,12 @@ function QuestionAnswerInput({
             }}
           />
         </label>
-        <div className="mt-4 rounded-md border bg-muted/40 p-3 text-left text-xs">
+        <div aria-live="polite" className="mt-4 rounded-md border bg-muted/40 p-3 text-left text-xs" role="status">
           <div className="font-medium">Upload state: {currentUploadState}</div>
           {parsedAnswer?.fileName && <div className="mt-1 text-muted-foreground">Current file: {parsedAnswer.fileName}</div>}
           {uploadState === "uploading" && <div className="mt-1 text-muted-foreground">Uploading file...</div>}
           {uploadState === "replaced" && <div className="mt-1 text-muted-foreground">Previous file was replaced.</div>}
-          {uploadState === "failed" && <div className="mt-1 text-destructive">{uploadError ?? "Upload failed. Select the file again."}</div>}
+          {uploadState === "failed" && <div className="mt-1 text-destructive" role="alert">{uploadError ?? "Upload failed. Select the file again."}</div>}
           {parsedAnswer?.fileName && (
             <Button
               className="mt-3"
