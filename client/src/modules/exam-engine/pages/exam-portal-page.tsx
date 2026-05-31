@@ -155,10 +155,12 @@ function ExamPortalPage({
 
   const startAttemptMutation = useMutation({
     mutationFn: ({ examId, studentId }: { examId: number; studentId: number }) => startAttempt(examId, studentId),
-    onSuccess: (attemptResult) => {
+    onSuccess: (attemptResult, variables) => {
       setAttempt(attemptResult)
       setAnswers(Object.fromEntries(attemptResult.answers.map((answer) => [answer.questionId, answer])))
       setSelectedQuestionId((current) => current ?? getAttemptQuestions(attemptResult)[0]?.questionId ?? null)
+      queryClient.setQueryData(examQueryKeys.studentAttempt(variables.studentId, variables.examId), attemptResult)
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.studentExams(variables.studentId) })
       if (canUseStudentPortal) {
         setMainView("student")
       }
@@ -180,6 +182,13 @@ function ExamPortalPage({
     }) => saveAnswer(attemptId, questionId, answerJson, flaggedForReview),
     onSuccess: (answer) => {
       setAnswers((current) => ({ ...current, [answer.questionId]: answer }))
+      setAttempt((current) => current ? updateAttemptAnswer(current, answer) : current)
+      if (activeExam && hasStudentId) {
+        queryClient.setQueryData<ExamAttempt | undefined>(
+          examQueryKeys.studentAttempt(studentId, activeExam.id),
+          (current) => current ? updateAttemptAnswer(current, answer) : current,
+        )
+      }
     },
   })
 
@@ -202,6 +211,10 @@ function ExamPortalPage({
       setAttempt(submitted)
       setAnswers(Object.fromEntries(submitted.answers.map((answer) => [answer.questionId, answer])))
       setStudentPanel("results")
+      if (activeExam && hasStudentId) {
+        queryClient.setQueryData(examQueryKeys.studentAttempt(studentId, activeExam.id), submitted)
+        void queryClient.invalidateQueries({ queryKey: examQueryKeys.studentExams(studentId) })
+      }
     },
   })
 
@@ -212,6 +225,7 @@ function ExamPortalPage({
     },
     onSuccess: (exam) => {
       setActiveExamOverride(exam)
+      queryClient.setQueryData(examQueryKeys.detail(exam.id), exam)
       setTeacherNotice(`${exam.title} is now ${exam.status}.`)
       queryClient.setQueriesData<ExamDashboard>({ queryKey: examQueryKeys.dashboardRoot() }, (dashboard) => {
         if (!dashboard) {
@@ -244,15 +258,21 @@ function ExamPortalPage({
 
   const duplicateExamMutation = useMutation({
     mutationFn: duplicateExam,
-    onSuccess: () => {
+    onSuccess: (exam) => {
+      queryClient.setQueryData(examQueryKeys.detail(exam.id), exam)
       void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
     },
   })
 
   const archiveExamMutation = useMutation({
     mutationFn: archiveExam,
-    onSuccess: () => {
+    onSuccess: (exam) => {
+      if (activeExam?.id === exam.id) {
+        setActiveExamOverride(exam)
+      }
+      queryClient.setQueryData(examQueryKeys.detail(exam.id), exam)
       void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.studentExamsRoot() })
     },
   })
 
@@ -269,6 +289,7 @@ function ExamPortalPage({
     mutationFn: createExam,
     onSuccess: (exam) => {
       setActiveExamOverride(exam)
+      queryClient.setQueryData(examQueryKeys.detail(exam.id), exam)
       handleTeacherPanelChange("builder")
       void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
     },
@@ -545,6 +566,17 @@ function getExamNavigationItems({
             }))
           : []),
       ]
+}
+
+function updateAttemptAnswer(attempt: ExamAttempt, answer: StudentAnswer) {
+
+  const existingAnswerIndex = attempt.answers.findIndex((current) => current.id === answer.id || current.questionId === answer.questionId)
+  const answers =
+    existingAnswerIndex === -1
+      ? [...attempt.answers, answer]
+      : attempt.answers.map((current, index) => (index === existingAnswerIndex ? answer : current))
+
+  return { ...attempt, answers }
 }
 
 
