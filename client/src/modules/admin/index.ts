@@ -1,1 +1,1 @@
-export { AdminPage } from "./pages/admin-page"
+export { AdminPage, type AdminPageId } from "./pages/admin-page"

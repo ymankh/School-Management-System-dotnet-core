@@ -49,9 +49,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/shared/components/ui/textarea"
 import { DashboardShell } from "@/shared/components/dashboard-shell"
 
+type AdminPageId = "overview" | "users" | "subjects" | "roles" | "activity"
+
 type AdminPageProps = {
   currentUser: AuthUser
   onLogout: () => void
+  onPageChange?: (page: AdminPageId) => void
+  page: AdminPageId
 }
 
 const roleOptions: AuthRole[] = ["admin", "principal", "teacher", "student", "parent"]
@@ -73,8 +77,7 @@ const defaultSubjectDraft = {
 const emptyUsers: AdminUser[] = []
 const emptySubjects: Subject[] = []
 
-function AdminPage({ currentUser, onLogout }: AdminPageProps) {
-  const [activePage, setActivePage] = useState<"overview" | "users" | "subjects">("overview")
+function AdminPage({ currentUser, onLogout, onPageChange, page }: AdminPageProps) {
   const [userSearch, setUserSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [subjectSearch, setSubjectSearch] = useState("")
@@ -194,10 +197,10 @@ function AdminPage({ currentUser, onLogout }: AdminPageProps) {
   return (
     <DashboardShell
       currentUser={currentUser}
-      description="Manage users, roles, and academic subjects."
-      activePage={activePage}
+      description="Manage users, roles, subjects, and operational activity."
+      activePage={page}
       contentClassName="mx-auto w-full max-w-7xl space-y-4 p-4 lg:p-6"
-      onPageChange={(page) => setActivePage(page as "overview" | "users" | "subjects")}
+      onPageChange={(nextPage) => onPageChange?.(nextPage as AdminPageId)}
       onLogout={onLogout}
       pages={navItems}
       sectionLabel="Admin"
@@ -762,4 +765,4 @@ function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong."
 }
 
-export { AdminPage }
+export { AdminPage, type AdminPageId }

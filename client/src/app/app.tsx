@@ -11,6 +11,7 @@ import {
 
 import { getSession, logout, type AuthUser } from "@/modules/auth/api/local-auth"
 import { NotFoundPage, UnauthorizedPage } from "@/modules/errors"
+import type { AdminPageId } from "@/modules/admin"
 import type { StudentPage as StudentPortalPage, TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 
 const AdminPage = lazy(() => import("@/modules/admin").then((module) => ({ default: module.AdminPage })))
@@ -67,9 +68,14 @@ const examRoute = createRoute({
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
-  beforeLoad: requireRole("admin"),
-  component: AdminRoute,
+  beforeLoad: requireRoleRedirect("admin", "/admin/overview"),
 })
+
+const adminOverviewRoute = createAdminRoute("/admin/overview", "overview")
+const adminUsersRoute = createAdminRoute("/admin/users", "users")
+const adminSubjectsRoute = createAdminRoute("/admin/subjects", "subjects")
+const adminRolesRoute = createAdminRoute("/admin/roles", "roles")
+const adminActivityRoute = createAdminRoute("/admin/activity", "activity")
 
 const principalRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -122,6 +128,11 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   examRoute,
   adminRoute,
+  adminOverviewRoute,
+  adminUsersRoute,
+  adminSubjectsRoute,
+  adminRolesRoute,
+  adminActivityRoute,
   principalRoute,
   teacherRoute,
   teacherDashboardRoute,
@@ -220,9 +231,18 @@ function ExamRoute() {
   return null
 }
 
-function AdminRoute() {
+function createAdminRoute(path: "/admin/overview" | "/admin/users" | "/admin/subjects" | "/admin/roles" | "/admin/activity", page: AdminPageId) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path,
+    beforeLoad: requireRole("admin"),
+    component: () => <AdminRoute page={page} />,
+  })
+}
+
+function AdminRoute({ page }: { page: AdminPageId }) {
   const { user } = rootRoute.useRouteContext()
-  return <AdminPage currentUser={user!} onLogout={useLogout()} />
+  return <AdminPage currentUser={user!} page={page} onLogout={useLogout()} />
 }
 
 function PrincipalRoute() {
@@ -297,17 +317,17 @@ function requireRole(role: AuthUser["role"]) {
   }
 }
 
-function requireRoleRedirect(role: AuthUser["role"], to: "/teacher/dashboard" | "/student/dashboard") {
+function requireRoleRedirect(role: AuthUser["role"], to: "/admin/overview" | "/teacher/dashboard" | "/student/dashboard") {
   return ({ context }: { context: AppRouterContext }) => {
     requireRole(role)({ context })
     throw redirect({ to })
   }
 }
 
-function getPortalPath(role: AuthUser["role"]): "/admin" | "/principal" | "/teacher/dashboard" | "/student/dashboard" | "/parent" {
+function getPortalPath(role: AuthUser["role"]): "/admin/overview" | "/principal" | "/teacher/dashboard" | "/student/dashboard" | "/parent" {
   switch (role) {
     case "admin":
-      return "/admin"
+      return "/admin/overview"
     case "principal":
       return "/principal"
     case "teacher":
