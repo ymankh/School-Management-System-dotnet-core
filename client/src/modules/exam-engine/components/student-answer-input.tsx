@@ -16,13 +16,15 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ArrowDown, ArrowUp, CheckCircle2, FileUp, GripVertical, Upload } from "lucide-react"
+import { ArrowDown, ArrowUp, FileUp, GripVertical, Upload } from "lucide-react"
 
 import { MarkdownContent } from "@/modules/exam-engine/components/markdown-content"
 import type { ExamQuestion, StudentAnswer } from "@/modules/exam-engine/types/exam-engine.types"
 import { getMatchPairs, getOrderingAnswer, getQuestionOptions, parseAnswer } from "@/modules/exam-engine/utils/exam-engine-model"
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
+import { Label } from "@/shared/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
 import { Textarea } from "@/shared/components/ui/textarea"
 import { cn } from "@/shared/lib/utils"
@@ -66,64 +68,58 @@ export function QuestionAnswerInput({
       : getQuestionOptions(question)
 
     return (
-      <div aria-label="Multiple choice answer options" className="space-y-2" role="radiogroup">
+      <RadioGroup
+        aria-label="Multiple choice answer options"
+        disabled={locked}
+        value={parsedAnswer?.selectedOptionId?.toString() ?? ""}
+        onValueChange={(value) => void onSaveAnswer(question.id, JSON.stringify({ selectedOptionId: Number(value) }), answer?.flaggedForReview)}
+      >
         {orderedOptions.map((option) => {
           const selected = parsedAnswer?.selectedOptionId === option.id
 
           return (
-            <button
+            <Label
               key={option.id}
-              aria-checked={selected}
-              role="radio"
               className={cn(
-                "flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm transition hover:bg-muted",
+                "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-md border bg-background p-3 text-left text-sm font-normal transition hover:bg-muted has-disabled:cursor-not-allowed has-disabled:opacity-50",
                 selected && "border-primary bg-primary/10 ring-2 ring-ring ring-offset-2 ring-offset-background",
               )}
-              disabled={locked}
-              type="button"
-              onClick={() => void onSaveAnswer(question.id, JSON.stringify({ selectedOptionId: option.id }), answer?.flaggedForReview)}
             >
-              <span
-                className={cn(
-                  "flex size-4 shrink-0 items-center justify-center rounded-full border",
-                  selected && "border-primary bg-primary text-primary-foreground",
-                )}
-              >
-                {selected && <CheckCircle2 className="size-3" />}
-              </span>
+              <RadioGroupItem value={option.id.toString()} />
               <MarkdownContent content={option.textMarkdown} />
-            </button>
+            </Label>
           )
         })}
-      </div>
+      </RadioGroup>
     )
   }
 
   if (question.type === "TrueFalse") {
     return (
-      <div aria-label="True or false answer options" className="flex gap-2" role="radiogroup">
+      <RadioGroup
+        aria-label="True or false answer options"
+        className="flex gap-2"
+        disabled={locked}
+        value={typeof parsedAnswer?.value === "boolean" ? String(parsedAnswer.value) : ""}
+        onValueChange={(value) => void onSaveAnswer(question.id, JSON.stringify({ value: value === "true" }), answer?.flaggedForReview)}
+      >
         {[true, false].map((value) => {
           const selected = parsedAnswer?.value === value
 
           return (
-            <Button
+            <Label
               key={String(value)}
-              aria-checked={selected}
-              role="radio"
               className={cn(
-                "min-w-24 justify-center",
-                selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
+                "flex min-h-11 min-w-24 cursor-pointer justify-center rounded-lg border border-input bg-background px-4 text-sm transition hover:bg-muted has-disabled:cursor-not-allowed has-disabled:opacity-50",
+                selected && "border-primary bg-primary text-primary-foreground",
               )}
-              disabled={locked}
-              variant={selected ? "default" : "outline"}
-              onClick={() => void onSaveAnswer(question.id, JSON.stringify({ value }), answer?.flaggedForReview)}
             >
-              {selected && <CheckCircle2 className="size-4" />}
+              <RadioGroupItem className="sr-only" value={String(value)} />
               {value ? "True" : "False"}
-            </Button>
+            </Label>
           )
         })}
-      </div>
+      </RadioGroup>
     )
   }
 
@@ -196,7 +192,7 @@ export function QuestionAnswerInput({
             ? `Accepted: ${acceptedTypes.join(", ")} • Max ${Math.round(maxSizeBytes / 1024 / 1024)}MB`
             : "Upload rules are not configured for this question."}
         </div>
-        <label className="mt-4 inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-input px-3 text-sm font-medium hover:bg-muted">
+        <Label className="mt-4 inline-flex h-11 w-fit cursor-pointer items-center justify-center gap-2 rounded-lg border border-input bg-background px-4 text-sm font-medium hover:bg-muted has-disabled:cursor-not-allowed has-disabled:opacity-50">
           <FileUp className="size-4" />
           Choose File
           <input
@@ -213,7 +209,7 @@ export function QuestionAnswerInput({
               uploadSelectedFile(file)
             }}
           />
-        </label>
+        </Label>
         <div aria-live="polite" className="mt-4 rounded-md border bg-muted/40 p-3 text-left text-xs" role="status">
           <div className="font-medium">Upload state: {currentUploadState}</div>
           {parsedAnswer?.fileName && <div className="mt-1 text-muted-foreground">Current file: {parsedAnswer.fileName}</div>}
@@ -397,16 +393,18 @@ function SortableOrderingItem({
           isDragging && "ring-2 ring-ring",
         )}
       >
-        <button
+        <Button
           aria-label={`Drag to reorder ${item}`}
-          className="flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md border text-muted-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-grab text-muted-foreground disabled:cursor-not-allowed"
           disabled={disabled}
+          size="icon-sm"
           type="button"
+          variant="outline"
           {...attributes}
           {...listeners}
         >
           <GripVertical className="size-4" />
-        </button>
+        </Button>
         <span className="min-w-0 flex-1">{item}</span>
         <div className="flex shrink-0 gap-1">
           <Button

@@ -35,7 +35,6 @@ import type {
   ClassSubjectOption,
   Exam,
   ExamDashboard,
-  ExamSummary,
   ExamQuestion,
   QuestionBankItem,
   QuestionGroup,
@@ -45,11 +44,23 @@ import type {
 import type { TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 import { durationMinutes, formatDate, matchesDashboardDateFilter, uniqueSorted } from "@/modules/exam-engine/utils/exam-engine-formatters"
 import { getExamGroups, getExamQuestions, getGroupQuestions } from "@/modules/exam-engine/utils/exam-engine-model"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/components/ui/alert-dialog"
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
 import { Checkbox } from "@/shared/components/ui/checkbox"
 import { Input } from "@/shared/components/ui/input"
+import { Label } from "@/shared/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -249,10 +260,11 @@ function BuilderEmptyState({
         </CardHeader>
         <CardContent className="space-y-3">
           {editableExams.map((exam) => (
-            <button
+            <Button
               key={exam.id}
-              className="flex w-full flex-col gap-3 rounded-md border bg-background p-4 text-left transition hover:border-primary hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+              className="h-auto w-full flex-col items-stretch justify-between gap-3 border-border bg-background p-4 text-left hover:border-primary hover:bg-muted/40 sm:flex-row sm:items-center"
               type="button"
+              variant="outline"
               onClick={() => openExam(exam.id)}
             >
               <span>
@@ -265,7 +277,7 @@ function BuilderEmptyState({
                 <StatusBadge status={exam.status} />
                 <Badge variant="outline">{exam.mode}</Badge>
               </span>
-            </button>
+            </Button>
           ))}
           {editableExams.length === 0 && (
             <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -280,7 +292,7 @@ function BuilderEmptyState({
           <CardTitle>Builder Starts Here</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <label className="block text-xs font-medium text-foreground">
+          <Label className="block text-xs font-medium text-foreground">
             Class and subject for new draft
             <Select value={selectedClassSubject?.id.toString() ?? ""} onValueChange={setSelectedClassSubjectId}>
               <SelectTrigger className="mt-1">
@@ -294,7 +306,7 @@ function BuilderEmptyState({
                 ))}
               </SelectContent>
             </Select>
-          </label>
+          </Label>
           <p>After selecting an exam, the builder shows groups, question editing, live Markdown and LaTeX preview, settings, attachments, and publishing controls.</p>
           <div className="rounded-md border bg-muted/40 p-3">
             Drafts are hidden from students until they are saved, made visible, and published.
@@ -341,23 +353,6 @@ function TeacherDashboard({
     const matchesDate = matchesDashboardDateFilter(exam, filters.date)
     return matchesSearch && matchesStatus && matchesClass && matchesSubject && matchesMode && matchesDate
   })
-
-  function confirmPublishExam(exam: ExamSummary) {
-    const confirmed = window.confirm(`Publish "${exam.title}"? Students assigned to this exam will be able to access it according to its schedule.`)
-
-    if (confirmed) {
-      publishExam(exam.id)
-    }
-  }
-
-  function confirmArchiveExam(exam: ExamSummary) {
-    const confirmed = window.confirm(`Archive "${exam.title}"? Archived exams are hidden from the active management list.`)
-
-    if (confirmed) {
-      archiveExam(exam.id)
-    }
-  }
-
 
   return (
     <div className="space-y-5">
@@ -466,14 +461,45 @@ function TeacherDashboard({
                       <div className="flex justify-end gap-1">
                         <IconButton title="Preview" icon={Eye} onClick={() => openExam(exam.id, "builder")} />
                         <IconButton title="Edit" icon={Settings} onClick={() => openExam(exam.id, "builder")} />
-                        <IconButton
-                          disabled={publishingExamId === exam.id || exam.isPublished}
-                          title={exam.isPublished ? "Published" : "Publish"}
-                          icon={CheckCircle2}
-                          onClick={() => confirmPublishExam(exam)}
-                        />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <IconButton
+                              disabled={publishingExamId === exam.id || exam.isPublished}
+                              title={exam.isPublished ? "Published" : "Publish"}
+                              icon={CheckCircle2}
+                            />
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Publish “{exam.title}”?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Students assigned to this exam will be able to access it according to its schedule.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => publishExam(exam.id)}>Publish exam</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                         <IconButton title="Duplicate" icon={Copy} onClick={() => duplicateExam(exam.id)} />
-                        <IconButton title="Archive" icon={Archive} onClick={() => confirmArchiveExam(exam)} />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <IconButton title="Archive" icon={Archive} />
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Archive “{exam.title}”?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Archived exams are hidden from the active management list.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction variant="destructive" onClick={() => archiveExam(exam.id)}>Archive exam</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                         <IconButton title="Results" icon={ListChecks} onClick={() => openExam(exam.id, "grading")} />
                       </div>
                     </TableCell>
@@ -579,14 +605,6 @@ function ExamBuilder({
       descriptionMarkdown: skillDraft.descriptionMarkdown,
       displayOrder: skillDisplayOrder,
     })
-  }
-
-  function confirmPublishCurrentExam() {
-    const confirmed = window.confirm(`Publish "${exam.title}"? Students assigned to this exam will be able to access it according to its schedule.`)
-
-    if (confirmed) {
-      publishExam(exam.id)
-    }
   }
 
   const openGroupFromSkillSheet = (skill: SubjectSkill) => {
@@ -724,15 +742,18 @@ function ExamBuilder({
             </div>
             <div className="space-y-2">
               {subjectSkills.map((skill) => (
-                <button
+                <Button
                   key={skill.id}
-                  className="w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
+                  className="h-auto w-full justify-start border-border px-2 py-2 text-left text-xs"
                   type="button"
+                  variant="outline"
                   onClick={() => openGroupFromSkillSheet(skill)}
                 >
-                  <span className="font-medium">{skill.name}</span>
-                  {skill.descriptionMarkdown && <span className="block text-muted-foreground">{skill.descriptionMarkdown}</span>}
-                </button>
+                  <span>
+                    <span className="font-medium">{skill.name}</span>
+                    {skill.descriptionMarkdown && <span className="block text-muted-foreground">{skill.descriptionMarkdown}</span>}
+                  </span>
+                </Button>
               ))}
               {subjectSkills.length === 0 && (
                 <div className="text-xs text-muted-foreground">No skills are defined for this subject yet.</div>
@@ -946,7 +967,7 @@ function ExamBuilder({
 
             <div className="grid gap-3 md:grid-cols-2">
               {filteredQuestionBank.map((item) => (
-                <label key={item.id} className="flex gap-3 rounded-md border p-3 text-sm">
+                <Label key={item.id} className="flex gap-3 rounded-md border border-input bg-background p-3 text-sm font-normal">
                   <Checkbox
                     checked={selectedBankItems.includes(item.id)}
                     onCheckedChange={(checked) =>
@@ -960,7 +981,7 @@ function ExamBuilder({
                     <span className="mb-1 block text-xs text-muted-foreground">{item.subject} • {item.ownerName}</span>
                     <span className="line-clamp-2 text-muted-foreground">{item.question.bodyMarkdown}</span>
                   </span>
-                </label>
+                </Label>
               ))}
               {filteredQuestionBank.length === 0 && (
                 <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground md:col-span-2">
@@ -975,7 +996,7 @@ function ExamBuilder({
               <h3 className="font-medium">Exam Attachments</h3>
               <Badge variant="outline">Images, PDF, answer key</Badge>
             </div>
-            <label className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-6 text-center text-sm hover:bg-muted/50">
+            <Label className="flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-input bg-background p-6 text-center text-sm font-normal hover:bg-muted/50 has-disabled:cursor-not-allowed has-disabled:opacity-50">
               <Upload className="mb-2 size-7 text-muted-foreground" />
               <span className="font-medium">{attachment ? attachment.name : "Upload exam image or attachment"}</span>
               <span className="mt-1 text-xs text-muted-foreground">Files are stored as exam attachments and can be inserted into Markdown.</span>
@@ -996,7 +1017,7 @@ function ExamBuilder({
                   }
                 }}
               />
-            </label>
+            </Label>
             {uploadedAttachment && (
               <div className="mt-3 rounded-md border bg-muted/30 p-3 text-xs">
                 <div className="font-medium">Ready to insert</div>
@@ -1021,15 +1042,15 @@ function ExamBuilder({
           <CardTitle>Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <label className="block text-xs font-medium">
+          <Label className="block text-xs font-medium">
             Title
             <Input
               className="mt-1"
               value={editableExam.title}
               onChange={(event) => setEditableExam((current) => ({ ...current, title: event.target.value }))}
             />
-          </label>
-          <label className="block text-xs font-medium">
+          </Label>
+          <Label className="block text-xs font-medium">
             Mode
             <Select
               value={editableExam.mode}
@@ -1044,8 +1065,8 @@ function ExamBuilder({
                 <SelectItem value="Mixed">Mixed</SelectItem>
               </SelectContent>
             </Select>
-          </label>
-          <label className="block text-xs font-medium">
+          </Label>
+          <Label className="block text-xs font-medium">
             Start time
             <Input
               className="mt-1"
@@ -1053,8 +1074,8 @@ function ExamBuilder({
               value={toDatetimeLocal(editableExam.startAtUtc)}
               onChange={(event) => setEditableExam((current) => ({ ...current, startAtUtc: fromDatetimeLocal(event.target.value) }))}
             />
-          </label>
-          <label className="block text-xs font-medium">
+          </Label>
+          <Label className="block text-xs font-medium">
             End time
             <Input
               className="mt-1"
@@ -1062,9 +1083,9 @@ function ExamBuilder({
               value={toDatetimeLocal(editableExam.endAtUtc)}
               onChange={(event) => setEditableExam((current) => ({ ...current, endAtUtc: fromDatetimeLocal(event.target.value) }))}
             />
-          </label>
+          </Label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="block text-xs font-medium">
+            <Label className="block text-xs font-medium">
               Total marks
               <Input
                 className="mt-1"
@@ -1073,8 +1094,8 @@ function ExamBuilder({
                 value={editableExam.maxMark}
                 onChange={(event) => setEditableExam((current) => ({ ...current, maxMark: Number.parseInt(event.target.value, 10) || 0 }))}
               />
-            </label>
-            <label className="block text-xs font-medium">
+            </Label>
+            <Label className="block text-xs font-medium">
               Passing marks
               <Input
                 className="mt-1"
@@ -1083,29 +1104,29 @@ function ExamBuilder({
                 value={editableExam.passingMark}
                 onChange={(event) => setEditableExam((current) => ({ ...current, passingMark: Number.parseInt(event.target.value, 10) || 0 }))}
               />
-            </label>
+            </Label>
           </div>
-          <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
+          <Label className="flex items-center justify-between gap-3 rounded-md border border-input bg-background p-3 text-xs font-medium">
             Visible to students
             <Checkbox
               checked={editableExam.isVisible}
               onCheckedChange={(checked) => setEditableExam((current) => ({ ...current, isVisible: checked === true }))}
             />
-          </label>
-          <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
+          </Label>
+          <Label className="flex items-center justify-between gap-3 rounded-md border border-input bg-background p-3 text-xs font-medium">
             Shuffle groups
             <Checkbox
               checked={editableExam.shuffleGroups}
               onCheckedChange={(checked) => setEditableExam((current) => ({ ...current, shuffleGroups: checked === true }))}
             />
-          </label>
-          <label className="flex items-center justify-between gap-3 rounded-md border bg-background p-3 text-xs font-medium">
+          </Label>
+          <Label className="flex items-center justify-between gap-3 rounded-md border border-input bg-background p-3 text-xs font-medium">
             Focus mode
             <Checkbox
               checked={editableExam.focusModeEnabled}
               onCheckedChange={(checked) => setEditableExam((current) => ({ ...current, focusModeEnabled: checked === true }))}
             />
-          </label>
+          </Label>
           <SettingRow label="Duration" value={`${durationMinutes(editableExam.startAtUtc, editableExam.endAtUtc)} minutes`} />
           <SettingRow label="Date" value={formatDate(editableExam.startAtUtc)} />
           <div className="rounded-md border bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
@@ -1115,10 +1136,26 @@ function ExamBuilder({
             <Save className="size-4" />
             Save Settings
           </Button>
-          <Button className="w-full" disabled={isPublishing || exam.isPublished} onClick={confirmPublishCurrentExam}>
-            <CheckCircle2 className="size-4" />
-            {exam.isPublished ? "Published" : isPublishing ? "Publishing..." : "Publish Exam"}
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button className="w-full" disabled={isPublishing || exam.isPublished}>
+                <CheckCircle2 className="size-4" />
+                {exam.isPublished ? "Published" : isPublishing ? "Publishing..." : "Publish Exam"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Publish “{exam.title}”?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Students assigned to this exam will be able to access it according to its schedule.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => publishExam(exam.id)}>Publish exam</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>
@@ -1132,7 +1169,7 @@ function ExamBuilder({
           </SheetDescription>
         </SheetHeader>
         <div className="space-y-4 px-4">
-          <label className="block text-xs font-medium">
+          <Label className="block text-xs font-medium">
             Skill name
             <Input
               className="mt-1"
@@ -1140,8 +1177,8 @@ function ExamBuilder({
               value={skillDraft.name}
               onChange={(event) => setSkillDraft((current) => ({ ...current, name: event.target.value }))}
             />
-          </label>
-          <label className="block text-xs font-medium">
+          </Label>
+          <Label className="block text-xs font-medium">
             Description Markdown
             <Textarea
               className="mt-1 min-h-28 font-mono"
@@ -1149,8 +1186,8 @@ function ExamBuilder({
               value={skillDraft.descriptionMarkdown}
               onChange={(event) => setSkillDraft((current) => ({ ...current, descriptionMarkdown: event.target.value }))}
             />
-          </label>
-          <label className="block text-xs font-medium">
+          </Label>
+          <Label className="block text-xs font-medium">
             Display order
             <Input
               className="mt-1"
@@ -1160,7 +1197,7 @@ function ExamBuilder({
               placeholder={(subjectSkills.length + 1).toString()}
               onChange={(event) => setSkillDraft((current) => ({ ...current, displayOrder: event.target.value }))}
             />
-          </label>
+          </Label>
           {!isSkillDraftValid && (
             <div className="rounded-md border border-muted bg-muted/40 p-3 text-xs text-muted-foreground">
               Add a skill name and a positive display order.
@@ -1204,7 +1241,7 @@ function ExamBuilder({
                 <div className="mt-1 text-xs text-muted-foreground">{groupSkillDraft.skill.descriptionMarkdown}</div>
               )}
             </div>
-            <label className="block text-xs font-medium">
+            <Label className="block text-xs font-medium">
               Selection policy
               <Select
                 value={groupSkillDraft.selectionPolicy}
@@ -1222,9 +1259,9 @@ function ExamBuilder({
                   <SelectItem value="pick-random">Pick random questions</SelectItem>
                 </SelectContent>
               </Select>
-            </label>
+            </Label>
             {groupSkillDraft.selectionPolicy === "pick-random" && (
-              <label className="block text-xs font-medium">
+              <Label className="block text-xs font-medium">
                 Questions to show
                 <Input
                   className="mt-1"
@@ -1235,9 +1272,9 @@ function ExamBuilder({
                     setGroupSkillDraft((current) => current ? { ...current, questionsToShow: event.target.value } : current)
                   }
                 />
-              </label>
+              </Label>
             )}
-            <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+            <Label className="flex items-start gap-3 rounded-md border border-input bg-background p-3 text-sm font-normal">
               <Checkbox
                 checked={groupSkillDraft.shuffleQuestions}
                 className="mt-1"
@@ -1249,7 +1286,7 @@ function ExamBuilder({
                 <span className="block font-medium">Shuffle questions for students</span>
                 <span className="text-xs text-muted-foreground">The teacher authoring order stays intact, while each attempt stores its delivered order.</span>
               </span>
-            </label>
+            </Label>
           </div>
         )}
         <SheetFooter>
@@ -1348,7 +1385,7 @@ function QuestionAnswerKeyEditor({
       </div>
 
       <div className="mb-3 grid gap-3 md:grid-cols-2">
-        <label className="text-xs font-medium">
+        <Label className="text-xs font-medium">
           Tags
           <Input
             className="mt-1"
@@ -1363,15 +1400,15 @@ function QuestionAnswerKeyEditor({
               })
             }
           />
-        </label>
-        <label className="text-xs font-medium">
+        </Label>
+        <Label className="text-xs font-medium">
           Grading rule
           <Input
             className="mt-1"
             value={question.gradingRule}
             onChange={(event) => updateQuestion({ gradingRule: event.target.value })}
           />
-        </label>
+        </Label>
       </div>
 
       {question.type === "MultipleChoice" && (
@@ -1382,13 +1419,13 @@ function QuestionAnswerKeyEditor({
                 value={option.textMarkdown}
                 onChange={(event) => updateOption(option.id, { textMarkdown: event.target.value })}
               />
-              <label className="flex items-center gap-2 rounded-md border bg-background px-3 text-xs">
+              <Label className="flex h-11 items-center gap-2 rounded-md border border-input bg-background px-3 text-xs">
                 <Checkbox
                   checked={option.isCorrect}
                   onCheckedChange={(checked) => updateOption(option.id, { isCorrect: checked === true })}
                 />
                 Correct
-              </label>
+              </Label>
             </div>
           ))}
           <Button size="sm" type="button" variant="outline" onClick={addOption}>
@@ -1414,7 +1451,7 @@ function QuestionAnswerKeyEditor({
       )}
 
       {(question.type === "ShortAnswer" || question.type === "FillInTheBlank") && (
-        <label className="text-xs font-medium">
+        <Label className="text-xs font-medium">
           Accepted answers
           <Textarea
             className="mt-1 min-h-24"
@@ -1429,7 +1466,7 @@ function QuestionAnswerKeyEditor({
               })
             }
           />
-        </label>
+        </Label>
       )}
 
       {question.type === "Matching" && (
@@ -1448,7 +1485,7 @@ function QuestionAnswerKeyEditor({
       )}
 
       {question.type === "Ordering" && (
-        <label className="text-xs font-medium">
+        <Label className="text-xs font-medium">
           Correct order
           <Textarea
             className="mt-1 min-h-24"
@@ -1463,12 +1500,12 @@ function QuestionAnswerKeyEditor({
               })
             }
           />
-        </label>
+        </Label>
       )}
 
       {question.type === "FileUpload" && (
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-xs font-medium">
+          <Label className="text-xs font-medium">
             Accepted MIME types
             <Input
               className="mt-1"
@@ -1486,8 +1523,8 @@ function QuestionAnswerKeyEditor({
                 })
               }
             />
-          </label>
-          <label className="text-xs font-medium">
+          </Label>
+          <Label className="text-xs font-medium">
             Max size bytes
             <Input
               className="mt-1"
@@ -1503,7 +1540,7 @@ function QuestionAnswerKeyEditor({
                 })
               }
             />
-          </label>
+          </Label>
         </div>
       )}
 
@@ -1574,14 +1611,6 @@ function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (exa
   const gradingAnswers = gradingAnswersQuery.data ?? []
 
 
-  function confirmPublishMarks() {
-    const confirmed = window.confirm(`Publish marks for "${exam.title}"? Students will be able to view their results.`)
-
-    if (confirmed) {
-      publishMarks(exam.id)
-    }
-  }
-
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Card>
@@ -1637,7 +1666,23 @@ function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (exa
           <ChecklistItem done label="Objective questions auto-graded" />
           <ChecklistItem done={manualQuestions.length === 0} label="Manual answers reviewed" />
           <ChecklistItem done={exam.markPublished} label="Marks published to students" />
-          <Button className="w-full" variant="outline" onClick={confirmPublishMarks}>Publish Marks</Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button className="w-full" variant="outline">Publish Marks</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Publish marks for “{exam.title}”?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Students will be able to view their results.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => publishMarks(exam.id)}>Publish marks</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>

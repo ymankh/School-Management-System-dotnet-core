@@ -26,6 +26,17 @@ import {
   type AdminUser,
   type Subject,
 } from "@/modules/admin/api/admin-api"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/components/ui/alert-dialog"
 import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card"
@@ -243,14 +254,6 @@ function UsersPanel({
     },
   })
 
-  function confirmDeleteUser(user: AdminUser) {
-    const confirmed = window.confirm(`Delete ${user.fullName}? This removes the account and cannot be undone.`)
-
-    if (confirmed) {
-      deleteMutation.mutate(user.id)
-    }
-  }
-
 
   async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -410,16 +413,33 @@ function UsersPanel({
                                 <Button aria-label="Edit user" size="icon-sm" variant="ghost" title="Edit user" onClick={() => startEditing(user)}>
                                   <Pencil className="size-4" aria-hidden="true" />
                                 </Button>
-                                <Button
-                                  aria-label={isOnlyAdmin ? "Cannot delete the only admin" : "Delete user"}
-                                  size="icon-sm"
-                                  variant="destructive"
-                                  title={isOnlyAdmin ? "Cannot delete the only admin" : "Delete user"}
-                                  disabled={deleteMutation.isPending || isOnlyAdmin}
-                                  onClick={() => confirmDeleteUser(user)}
-                                >
-                                  <Trash2 className="size-4" aria-hidden="true" />
-                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      aria-label={isOnlyAdmin ? "Cannot delete the only admin" : "Delete user"}
+                                      size="icon-sm"
+                                      variant="destructive"
+                                      title={isOnlyAdmin ? "Cannot delete the only admin" : "Delete user"}
+                                      disabled={deleteMutation.isPending || isOnlyAdmin}
+                                    >
+                                      <Trash2 className="size-4" aria-hidden="true" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete {user.fullName}?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This removes the account and cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction variant="destructive" onClick={() => deleteMutation.mutate(user.id)}>
+                                        Delete user
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </>
                             )}
                           </div>
@@ -488,14 +508,6 @@ function SubjectsPanel({
     },
   })
 
-  function confirmDeactivateSubject(subject: Subject) {
-    const confirmed = window.confirm(`Deactivate ${subject.name}? Existing references stay intact, but the subject will no longer be active.`)
-
-    if (confirmed) {
-      deleteMutation.mutate(subject.id)
-    }
-  }
-
 
   function handleCreateSubject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -558,10 +570,10 @@ function SubjectsPanel({
                 <Search className="absolute left-2.5 top-2 size-4 text-muted-foreground" aria-hidden="true" />
                 <Input className="pl-8 sm:w-64" placeholder="Search subjects" value={search} onChange={(event) => setSearch(event.target.value)} />
               </div>
-              <label className="flex h-8 items-center gap-2 rounded-lg border px-3 text-sm">
+              <Label className="flex h-11 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm">
                 <Checkbox checked={includeInactive} onCheckedChange={(checked) => setIncludeInactive(checked === true)} />
                 Include inactive
-              </label>
+              </Label>
             </div>
           </div>
         </CardHeader>
@@ -607,13 +619,13 @@ function SubjectsPanel({
                         </TableCell>
                         <TableCell>
                           {isEditing ? (
-                            <label className="flex items-center gap-2">
+                            <Label className="flex items-center gap-2">
                               <Checkbox
                                 checked={editDraft.isActive}
                                 onCheckedChange={(checked) => setEditDraft({ ...editDraft, isActive: checked === true })}
                               />
                               Active
-                            </label>
+                            </Label>
                           ) : (
                             <Badge variant={subject.isActive ? "secondary" : "outline"}>{subject.isActive ? "Active" : "Inactive"}</Badge>
                           )}
@@ -630,9 +642,27 @@ function SubjectsPanel({
                                 <Button aria-label="Edit subject" size="icon-sm" variant="ghost" title="Edit subject" onClick={() => startEditing(subject)}>
                                   <Pencil className="size-4" aria-hidden="true" />
                                 </Button>
-                                <Button aria-label="Deactivate subject" size="icon-sm" variant="destructive" title="Deactivate subject" disabled={deleteMutation.isPending || !subject.isActive} onClick={() => confirmDeactivateSubject(subject)}>
-                                  <Trash2 className="size-4" aria-hidden="true" />
-                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button aria-label="Deactivate subject" size="icon-sm" variant="destructive" title="Deactivate subject" disabled={deleteMutation.isPending || !subject.isActive}>
+                                      <Trash2 className="size-4" aria-hidden="true" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Deactivate {subject.name}?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Existing references stay intact, but the subject will no longer be active.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction variant="destructive" onClick={() => deleteMutation.mutate(subject.id)}>
+                                        Deactivate subject
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </>
                             )}
                           </div>

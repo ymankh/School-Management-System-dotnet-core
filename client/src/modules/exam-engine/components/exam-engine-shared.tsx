@@ -1,3 +1,5 @@
+import type * as React from "react"
+
 import { CheckCircle2, Eye, LayoutDashboard } from "lucide-react"
 
 import { Badge } from "@/shared/components/ui/badge"
@@ -25,17 +27,18 @@ export function SideButton({
   onClick: () => void
 }) {
   return (
-    <button
+    <Button
       className={cn(
-        "mb-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground",
-        active && "border-l-4 border-primary bg-secondary text-secondary-foreground",
+        "mb-1 w-full justify-start gap-3 px-3 text-muted-foreground",
+        active && "border-l-4 border-primary bg-secondary text-secondary-foreground hover:bg-secondary",
       )}
       type="button"
+      variant="ghost"
       onClick={onClick}
     >
       <Icon className="size-4" />
       {label}
-    </button>
+    </Button>
   )
 }
 
@@ -82,16 +85,14 @@ export function StatusBadge({ status }: { status: string }) {
 export function IconButton({
   disabled,
   icon: Icon,
-  onClick,
   title,
-}: {
-  disabled?: boolean
+  ...props
+}: Omit<React.ComponentProps<typeof Button>, "children" | "size" | "variant"> & {
   icon: typeof Eye
-  onClick?: () => void
   title: string
 }) {
   return (
-    <Button aria-label={title} disabled={disabled} title={title} variant="ghost" size="icon" onClick={onClick}>
+    <Button aria-label={title} disabled={disabled} title={title} variant="ghost" size="icon" {...props}>
       <Icon className="size-4" />
     </Button>
   )

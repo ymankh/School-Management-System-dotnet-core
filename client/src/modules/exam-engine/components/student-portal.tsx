@@ -461,19 +461,21 @@ function QuestionMap({
         </div>
         <div className="flex flex-wrap gap-2">
           {questions.map((question, index) => (
-            <button
+            <Button
               key={question.id}
               className={cn(
-                "flex size-10 shrink-0 items-center justify-center rounded-md border text-sm font-medium transition hover:bg-muted sm:size-11 xl:size-10",
-                answers[question.id] && "bg-primary text-primary-foreground",
-                answers[question.id]?.flaggedForReview && "bg-accent text-accent-foreground",
+                "size-11 shrink-0",
+                answers[question.id] && "bg-primary text-primary-foreground hover:bg-primary/90",
+                answers[question.id]?.flaggedForReview && "bg-accent text-accent-foreground hover:bg-accent/80",
                 selectedQuestionId === question.id && "ring-2 ring-ring",
               )}
+              size="icon-sm"
               type="button"
+              variant="outline"
               onClick={() => onSelectQuestion(question.id)}
             >
               {index + 1}
-            </button>
+            </Button>
           ))}
         </div>
       </CardContent>
@@ -522,13 +524,13 @@ function ReviewSubmit({
             </div>
           ))}
         </div>
-        <label className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm">
+        <Label className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm font-normal">
           <Checkbox className="mt-1" checked={confirmed} onCheckedChange={(checked) => setConfirmed(checked === true)} />
           <span>
             <span className="block font-medium">I understand this is the final submission.</span>
             <span className="text-muted-foreground">After submitting, answers are locked and unanswered questions are submitted blank.</span>
           </span>
-        </label>
+        </Label>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onContinue}>Continue Reviewing</Button>
           <Button disabled={!confirmed || locked} onClick={() => void onSubmit()}>Submit Final Exam</Button>
