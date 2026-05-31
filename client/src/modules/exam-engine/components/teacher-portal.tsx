@@ -1602,8 +1602,8 @@ function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (exa
                 </div>
                 <MarkdownContent content={question.bodyMarkdown} />
                 <div className="mt-4 grid gap-3 md:grid-cols-[120px_minmax(0,1fr)_auto]">
-                  <Input id={`mark-${question.id}`} placeholder="Mark" type="number" />
-                  <Input id={`feedback-${question.id}`} placeholder="Teacher feedback" />
+                  <Input aria-label={`Awarded mark for question ${index + 1}`} id={`mark-${question.id}`} placeholder="Mark" type="number" />
+                  <Input aria-label={`Teacher feedback for question ${index + 1}`} id={`feedback-${question.id}`} placeholder="Teacher feedback" />
                   <Button
                     disabled={!answer}
                     size="sm"

@@ -55,6 +55,7 @@ import { Badge } from "@/shared/components/ui/badge"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
 import { Checkbox } from "@/shared/components/ui/checkbox"
+import { Label } from "@/shared/components/ui/label"
 import { Input } from "@/shared/components/ui/input"
 import {
   Select,
@@ -276,13 +277,17 @@ function StudentExamList({
           ))}
         </div>
         {canEditStudentId && (
-          <Input
-            className="w-full lg:w-56"
-            inputMode="numeric"
-            placeholder="Student ID"
-            value={studentIdInput}
-            onChange={(event) => setStudentIdInput(event.target.value)}
-          />
+          <div className="grid gap-1 lg:w-56">
+            <Label htmlFor="student-id-filter">Student ID</Label>
+            <Input
+              className="w-full"
+              id="student-id-filter"
+              inputMode="numeric"
+              placeholder="Student ID"
+              value={studentIdInput}
+              onChange={(event) => setStudentIdInput(event.target.value)}
+            />
+          </div>
         )}
       </div>
       <Card>
@@ -770,8 +775,9 @@ function QuestionAnswerInput({
   if (question.type === "FillInTheBlank") {
     return (
       <Input
-        placeholder="Type the missing value..."
+        aria-label="Fill in the blank answer"
         disabled={locked}
+        placeholder="Type the missing value..."
         value={textAnswer}
         onBlur={() => void onSaveAnswer(question.id, JSON.stringify({ value: textAnswer }), answer?.flaggedForReview)}
         onChange={(event) => onChangeText(event.target.value)}
@@ -781,6 +787,7 @@ function QuestionAnswerInput({
 
   return (
     <Textarea
+      aria-label="Written answer"
       className="min-h-48"
       disabled={locked}
       placeholder="Type your answer..."

@@ -14,8 +14,8 @@ Status values: `Not started`, `In progress`, `Done`, `Blocked`.
 | 8 | Done | Important | Shared controls | Icon-only buttons rely on `title` instead of explicit accessible names. | Accessibility fix |
 | 9 | Done | Important | Design system | Common button/tab touch targets are below the recommended 44px target. | Design-token fix |
 | 10 | Done | Important | Student exam | Student answer controls use pressed buttons where radio/form semantics are expected. | Accessibility fix |
-| 11 | In progress | Important | Forms | Student ID, answer, and grading inputs rely on placeholders instead of labels. | Accessibility fix |
-| 12 | Not started | Important | Student exam | Timer, autosave, and upload status changes are not announced to assistive technology. | Accessibility fix |
+| 11 | Done | Important | Forms | Student ID, answer, and grading inputs rely on placeholders instead of labels. | Accessibility fix |
+| 12 | In progress | Important | Student exam | Timer, autosave, and upload status changes are not announced to assistive technology. | Accessibility fix |
 | 13 | Not started | Important | Role portals | Principal and parent portals show visible “not connected yet” placeholders. | Product/content fix |
 | 14 | Not started | Important | Performance | Production app ships as one large JS chunk. | Architecture fix |
 | 15 | Not started | Important | Performance | Landing hero image asset is heavy. | Asset/performance fix |
@@ -36,3 +36,4 @@ Status values: `Not started`, `In progress`, `Done`, `Blocked`.
 - 2026-05-31: Completed ID 8. Shared and admin icon-only controls now expose explicit accessible names. Started ID 9.
 - 2026-05-31: Completed ID 9. Common button and tab sizing now uses larger interaction targets. Started ID 10.
 - 2026-05-31: Completed ID 10. Multiple-choice and true/false answer groups now use radio semantics instead of pressed-button semantics. Started ID 11.
+- 2026-05-31: Completed ID 11. Student ID, written answers, fill-in answers, and grading fields now expose labels or accessible names. Started ID 12.
