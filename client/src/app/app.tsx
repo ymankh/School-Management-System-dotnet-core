@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react"
+import { lazy, Suspense, useEffect, useState, type Dispatch, type SetStateAction } from "react"
 import {
   createRootRouteWithContext,
   createRoute,
@@ -10,15 +10,18 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 
-import { getSession, LoginPage, logout, RegisterPage, type AuthUser } from "@/modules/auth"
-import { AdminPage } from "@/modules/admin"
+import { getSession, logout, type AuthUser } from "@/modules/auth/api/local-auth"
 import { NotFoundPage, UnauthorizedPage } from "@/modules/errors"
-import { LandingPage } from "@/modules/landing"
-import { ParentPage } from "@/modules/parent"
-import { PrincipalPage } from "@/modules/principal"
-import { StudentPage } from "@/modules/student"
-import { TeacherPage } from "@/modules/teacher"
 import type { StudentPage as StudentPortalPage, TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
+
+const AdminPage = lazy(() => import("@/modules/admin").then((module) => ({ default: module.AdminPage })))
+const LandingPage = lazy(() => import("@/modules/landing").then((module) => ({ default: module.LandingPage })))
+const LoginPage = lazy(() => import("@/modules/auth").then((module) => ({ default: module.LoginPage })))
+const ParentPage = lazy(() => import("@/modules/parent").then((module) => ({ default: module.ParentPage })))
+const PrincipalPage = lazy(() => import("@/modules/principal").then((module) => ({ default: module.PrincipalPage })))
+const RegisterPage = lazy(() => import("@/modules/auth").then((module) => ({ default: module.RegisterPage })))
+const StudentPage = lazy(() => import("@/modules/student").then((module) => ({ default: module.StudentPage })))
+const TeacherPage = lazy(() => import("@/modules/teacher").then((module) => ({ default: module.TeacherPage })))
 
 type AppRouterContext = {
   isSessionLoading: boolean
@@ -181,7 +184,15 @@ function App() {
 }
 
 function RootRoute() {
-  return <Outlet />
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Outlet />
+    </Suspense>
+  )
+}
+
+function RouteFallback() {
+  return <main className="min-h-screen bg-background" />
 }
 
 function LoginRoute() {
