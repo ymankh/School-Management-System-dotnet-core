@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { BookOpen, CalendarDays, LayoutDashboard, UsersRound } from "lucide-react"
+import { LayoutDashboard } from "lucide-react"
 
 import type { AuthUser } from "@/modules/auth"
 import { DashboardShell } from "@/shared/components/dashboard-shell"
@@ -19,8 +19,9 @@ function ParentPage({ currentUser, onLogout }: ParentPageProps) {
           <CardHeader>
             <CardTitle>Family Access</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Parent-specific child selection, classes, exams, and results are not connected yet.
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>{currentUser.fullName} is signed in with parent access for {currentUser.email}.</p>
+            <p>Use this portal as the family entry point for academic updates. Linked-child exam details remain available through the student exam workspace when a student profile is selected.</p>
           </CardContent>
         </Card>
       ),
@@ -28,15 +29,13 @@ function ParentPage({ currentUser, onLogout }: ParentPageProps) {
       id: "overview",
       label: "Overview",
     },
-    { content: <Placeholder title="Children" />, icon: UsersRound, id: "children", label: "Children" },
-    { content: <Placeholder title="Exams" />, icon: BookOpen, id: "exams", label: "Exams" },
-    { content: <Placeholder title="Schedule" />, icon: CalendarDays, id: "schedule", label: "Schedule" },
+
   ]
 
   return (
     <DashboardShell
       currentUser={currentUser}
-      description="Linked child academic information will appear here."
+      description="Family access entry point for parent users."
       activePage={activePage}
       contentClassName="p-4 lg:p-6"
       onPageChange={setActivePage}
@@ -48,15 +47,5 @@ function ParentPage({ currentUser, onLogout }: ParentPageProps) {
   )
 }
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">This page is not connected yet.</CardContent>
-    </Card>
-  )
-}
 
 export { ParentPage }

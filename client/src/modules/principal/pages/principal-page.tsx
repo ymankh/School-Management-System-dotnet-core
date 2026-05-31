@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { BookOpen, GraduationCap, LayoutDashboard, UsersRound } from "lucide-react"
+import { LayoutDashboard } from "lucide-react"
 
 import type { AuthUser } from "@/modules/auth"
 import { DashboardShell } from "@/shared/components/dashboard-shell"
@@ -19,8 +19,9 @@ function PrincipalPage({ currentUser, onLogout }: PrincipalPageProps) {
           <CardHeader>
             <CardTitle>Academic Management</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Principal-specific class, teacher, student, and subject tools are not connected yet.
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>{currentUser.fullName} is signed in with principal access for {currentUser.email}.</p>
+            <p>Use this portal as the principal entry point for academic oversight while class, teacher, and subject administration remain in the admin and teacher workspaces.</p>
           </CardContent>
         </Card>
       ),
@@ -28,15 +29,13 @@ function PrincipalPage({ currentUser, onLogout }: PrincipalPageProps) {
       id: "overview",
       label: "Overview",
     },
-    { content: <Placeholder title="Classes" />, icon: GraduationCap, id: "classes", label: "Classes" },
-    { content: <Placeholder title="Teachers" />, icon: UsersRound, id: "teachers", label: "Teachers" },
-    { content: <Placeholder title="Subjects" />, icon: BookOpen, id: "subjects", label: "Subjects" },
+
   ]
 
   return (
     <DashboardShell
       currentUser={currentUser}
-      description="Academic management modules will appear here."
+      description="Academic oversight entry point for principal users."
       activePage={activePage}
       contentClassName="p-4 lg:p-6"
       onPageChange={setActivePage}
@@ -48,15 +47,5 @@ function PrincipalPage({ currentUser, onLogout }: PrincipalPageProps) {
   )
 }
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">This page is not connected yet.</CardContent>
-    </Card>
-  )
-}
 
 export { PrincipalPage }
