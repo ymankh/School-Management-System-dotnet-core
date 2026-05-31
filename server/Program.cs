@@ -4,6 +4,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using SchoolSystemTask.Data;
+using SchoolSystemTask.Helpers;
+using SchoolSystemTask.Modules.Auth.Domain;
 using SchoolSystemTask.Modules.Exams.Application;
 using System.Text.Json.Serialization;
 
@@ -95,7 +97,17 @@ public class Program
         using (var scope = app.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            db.Database.Migrate();
+
+            if (db.Database.IsSqlite())
+            {
+                db.Database.EnsureCreated();
+            }
+            else
+            {
+                db.Database.Migrate();
+            }
+
+            SeedDefaultAdmin(db);
         }
 
         // Configure the HTTP request pipeline.
@@ -145,5 +157,27 @@ public class Program
         });
 
         app.Run();
+    }
+    private static void SeedDefaultAdmin(ApplicationDbContext db)
+    {
+        const string email = "admin@school.local";
+
+        if (db.Users.Any(user => user.Email == email))
+        {
+            return;
+        }
+
+        const string salt = "MDEyMzQ1Njc4OWFiY2RlZg==";
+        db.Users.Add(new AuthUser
+        {
+            FullName = "Default Admin",
+            Email = email,
+            PasswordHash = HashHelper.HashPassword("Admin@12345", salt),
+            PasswordSalt = salt,
+            Role = AuthRoles.Admin,
+            StudentId = null,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+        db.SaveChanges();
     }
 }

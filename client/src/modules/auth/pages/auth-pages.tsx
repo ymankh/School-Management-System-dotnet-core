@@ -40,9 +40,9 @@ function AuthShell({ children, eyebrow, title, description }: AuthShellProps) {
                 <BookOpenCheck className="size-4" aria-hidden="true" />
                 School operations workspace
               </div>
-              <h1 className="font-heading text-4xl font-semibold leading-tight tracking-normal">
+              <p className="font-heading text-4xl font-semibold leading-tight tracking-normal">
                 Manage exams, classes, and student work from one focused dashboard.
-              </h1>
+              </p>
               <p className="mt-4 max-w-lg text-base leading-7 text-background/82">
                 Sign in or create a database-backed account to explore the exam engine as a student, teacher, or
                 administrator.

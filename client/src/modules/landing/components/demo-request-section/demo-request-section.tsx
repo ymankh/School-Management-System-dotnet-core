@@ -37,15 +37,23 @@ function DemoRequestSection() {
           </ul>
         </div>
 
-        <form className="grid gap-6 p-8 sm:p-12">
+        <form
+          action="mailto:support@edumanager.example?subject=EduManager%20demo%20request"
+          className="grid gap-6 p-8 sm:p-12"
+          encType="text/plain"
+          method="post"
+        >
           <div className="grid gap-2">
             <Label htmlFor="institution-name">
-              Institution Name *
+              Institution Name <span aria-hidden="true">*</span>
             </Label>
             <Input
+              autoComplete="organization"
               className="h-11 rounded-md px-4"
               id="institution-name"
+              name="institution"
               placeholder="e.g. Springfield High School"
+              required
               type="text"
             />
           </div>
@@ -53,23 +61,29 @@ function DemoRequestSection() {
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="first-name">
-                First Name *
+                First Name <span aria-hidden="true">*</span>
               </Label>
               <Input
+                autoComplete="given-name"
                 className="h-11 rounded-md px-4"
                 id="first-name"
+                name="firstName"
                 placeholder="Jane"
+                required
                 type="text"
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="last-name">
-                Last Name *
+                Last Name <span aria-hidden="true">*</span>
               </Label>
               <Input
+                autoComplete="family-name"
                 className="h-11 rounded-md px-4"
                 id="last-name"
+                name="lastName"
                 placeholder="Doe"
+                required
                 type="text"
               />
             </div>
@@ -78,20 +92,23 @@ function DemoRequestSection() {
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="work-email">
-                Work Email *
+                Work Email <span aria-hidden="true">*</span>
               </Label>
               <Input
+                autoComplete="email"
                 className="h-11 rounded-md px-4"
                 id="work-email"
+                name="email"
                 placeholder="jane@school.edu"
+                required
                 type="email"
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">
-                Your Role
+                Your Role <span aria-hidden="true">*</span>
               </Label>
-              <Select>
+              <Select name="role" required>
                 <SelectTrigger
                   className="h-11 w-full rounded-md px-4"
                   id="role"
@@ -108,7 +125,7 @@ function DemoRequestSection() {
             </div>
           </div>
 
-          <Button className="mt-2 h-11" type="button">
+          <Button className="mt-2 h-11" type="submit">
             Submit Request
           </Button>
           <p className="text-center text-xs text-muted-foreground">

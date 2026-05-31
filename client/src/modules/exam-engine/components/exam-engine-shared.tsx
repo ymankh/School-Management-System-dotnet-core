@@ -91,7 +91,7 @@ export function IconButton({
   title: string
 }) {
   return (
-    <Button disabled={disabled} title={title} variant="ghost" size="icon" onClick={onClick}>
+    <Button aria-label={title} disabled={disabled} title={title} variant="ghost" size="icon" onClick={onClick}>
       <Icon className="size-4" />
     </Button>
   )

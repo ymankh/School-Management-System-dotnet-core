@@ -134,8 +134,10 @@ function PricingCards({ billingCycle }: PricingCardsProps) {
               </p>
             )}
 
-            <Button className="mt-8 w-full" variant={plan.featured ? "default" : "outline"}>
-              {plan.name === "Enterprise" ? "Contact Sales" : "Start Plan"}
+            <Button asChild className="mt-8 w-full" variant={plan.featured ? "default" : "outline"}>
+              <a href={plan.name === "Enterprise" ? "#contact" : "/register"}>
+                {plan.name === "Enterprise" ? "Contact Sales" : "Start Plan"}
+              </a>
             </Button>
 
             <ul className="mt-8 space-y-4 text-sm text-muted-foreground">

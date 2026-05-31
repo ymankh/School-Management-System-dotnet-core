@@ -24,13 +24,17 @@ function HeroSection() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Button className="h-11 px-6">
-              Start Free Trial
-              <ArrowRight className="size-4" aria-hidden="true" />
+            <Button asChild className="h-11 px-6">
+              <a href="/register">
+                Start Free Trial
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </a>
             </Button>
-            <Button className="h-11 gap-2 px-6" variant="outline">
-              View Demo
-              <CirclePlay className="size-4" aria-hidden="true" />
+            <Button asChild className="h-11 gap-2 px-6" variant="outline">
+              <a href="#contact">
+                View Demo
+                <CirclePlay className="size-4" aria-hidden="true" />
+              </a>
             </Button>
           </div>
 

@@ -35,6 +35,7 @@ import type {
   ClassSubjectOption,
   Exam,
   ExamDashboard,
+  ExamSummary,
   ExamQuestion,
   QuestionBankItem,
   QuestionGroup,
@@ -341,6 +342,23 @@ function TeacherDashboard({
     return matchesSearch && matchesStatus && matchesClass && matchesSubject && matchesMode && matchesDate
   })
 
+  function confirmPublishExam(exam: ExamSummary) {
+    const confirmed = window.confirm(`Publish "${exam.title}"? Students assigned to this exam will be able to access it according to its schedule.`)
+
+    if (confirmed) {
+      publishExam(exam.id)
+    }
+  }
+
+  function confirmArchiveExam(exam: ExamSummary) {
+    const confirmed = window.confirm(`Archive "${exam.title}"? Archived exams are hidden from the active management list.`)
+
+    if (confirmed) {
+      archiveExam(exam.id)
+    }
+  }
+
+
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-4">
@@ -452,10 +470,10 @@ function TeacherDashboard({
                           disabled={publishingExamId === exam.id || exam.isPublished}
                           title={exam.isPublished ? "Published" : "Publish"}
                           icon={CheckCircle2}
-                          onClick={() => publishExam(exam.id)}
+                          onClick={() => confirmPublishExam(exam)}
                         />
                         <IconButton title="Duplicate" icon={Copy} onClick={() => duplicateExam(exam.id)} />
-                        <IconButton title="Archive" icon={Archive} onClick={() => archiveExam(exam.id)} />
+                        <IconButton title="Archive" icon={Archive} onClick={() => confirmArchiveExam(exam)} />
                         <IconButton title="Results" icon={ListChecks} onClick={() => openExam(exam.id, "grading")} />
                       </div>
                     </TableCell>
@@ -561,6 +579,14 @@ function ExamBuilder({
       descriptionMarkdown: skillDraft.descriptionMarkdown,
       displayOrder: skillDisplayOrder,
     })
+  }
+
+  function confirmPublishCurrentExam() {
+    const confirmed = window.confirm(`Publish "${exam.title}"? Students assigned to this exam will be able to access it according to its schedule.`)
+
+    if (confirmed) {
+      publishExam(exam.id)
+    }
   }
 
   const openGroupFromSkillSheet = (skill: SubjectSkill) => {
@@ -1089,7 +1115,7 @@ function ExamBuilder({
             <Save className="size-4" />
             Save Settings
           </Button>
-          <Button className="w-full" disabled={isPublishing || exam.isPublished} onClick={() => publishExam(exam.id)}>
+          <Button className="w-full" disabled={isPublishing || exam.isPublished} onClick={confirmPublishCurrentExam}>
             <CheckCircle2 className="size-4" />
             {exam.isPublished ? "Published" : isPublishing ? "Publishing..." : "Publish Exam"}
           </Button>
@@ -1547,6 +1573,15 @@ function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (exa
   )
   const gradingAnswers = gradingAnswersQuery.data ?? []
 
+
+  function confirmPublishMarks() {
+    const confirmed = window.confirm(`Publish marks for "${exam.title}"? Students will be able to view their results.`)
+
+    if (confirmed) {
+      publishMarks(exam.id)
+    }
+  }
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
       <Card>
@@ -1602,7 +1637,7 @@ function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (exa
           <ChecklistItem done label="Objective questions auto-graded" />
           <ChecklistItem done={manualQuestions.length === 0} label="Manual answers reviewed" />
           <ChecklistItem done={exam.markPublished} label="Marks published to students" />
-          <Button className="w-full" variant="outline" onClick={() => publishMarks(exam.id)}>Publish Marks</Button>
+          <Button className="w-full" variant="outline" onClick={confirmPublishMarks}>Publish Marks</Button>
         </CardContent>
       </Card>
     </div>

@@ -243,6 +243,15 @@ function UsersPanel({
     },
   })
 
+  function confirmDeleteUser(user: AdminUser) {
+    const confirmed = window.confirm(`Delete ${user.fullName}? This removes the account and cannot be undone.`)
+
+    if (confirmed) {
+      deleteMutation.mutate(user.id)
+    }
+  }
+
+
   async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMutationError("")
@@ -398,15 +407,16 @@ function UsersPanel({
                               </>
                             ) : (
                               <>
-                                <Button size="icon-sm" variant="ghost" title="Edit user" onClick={() => startEditing(user)}>
+                                <Button aria-label="Edit user" size="icon-sm" variant="ghost" title="Edit user" onClick={() => startEditing(user)}>
                                   <Pencil className="size-4" aria-hidden="true" />
                                 </Button>
                                 <Button
+                                  aria-label={isOnlyAdmin ? "Cannot delete the only admin" : "Delete user"}
                                   size="icon-sm"
                                   variant="destructive"
                                   title={isOnlyAdmin ? "Cannot delete the only admin" : "Delete user"}
                                   disabled={deleteMutation.isPending || isOnlyAdmin}
-                                  onClick={() => deleteMutation.mutate(user.id)}
+                                  onClick={() => confirmDeleteUser(user)}
                                 >
                                   <Trash2 className="size-4" aria-hidden="true" />
                                 </Button>
@@ -477,6 +487,15 @@ function SubjectsPanel({
       void refreshSubjects()
     },
   })
+
+  function confirmDeactivateSubject(subject: Subject) {
+    const confirmed = window.confirm(`Deactivate ${subject.name}? Existing references stay intact, but the subject will no longer be active.`)
+
+    if (confirmed) {
+      deleteMutation.mutate(subject.id)
+    }
+  }
+
 
   function handleCreateSubject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -608,10 +627,10 @@ function SubjectsPanel({
                               </>
                             ) : (
                               <>
-                                <Button size="icon-sm" variant="ghost" title="Edit subject" onClick={() => startEditing(subject)}>
+                                <Button aria-label="Edit subject" size="icon-sm" variant="ghost" title="Edit subject" onClick={() => startEditing(subject)}>
                                   <Pencil className="size-4" aria-hidden="true" />
                                 </Button>
-                                <Button size="icon-sm" variant="destructive" title="Deactivate subject" disabled={deleteMutation.isPending || !subject.isActive} onClick={() => deleteMutation.mutate(subject.id)}>
+                                <Button aria-label="Deactivate subject" size="icon-sm" variant="destructive" title="Deactivate subject" disabled={deleteMutation.isPending || !subject.isActive} onClick={() => confirmDeactivateSubject(subject)}>
                                   <Trash2 className="size-4" aria-hidden="true" />
                                 </Button>
                               </>

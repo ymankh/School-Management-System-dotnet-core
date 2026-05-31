@@ -2,9 +2,21 @@ import { GraduationCap, Mail } from "lucide-react"
 
 import { Separator } from "@/shared/components/ui/separator"
 
+const supportEmail = "support@edumanager.example"
+
 const footerLinks = {
-  Product: ["Features", "Pricing", "Security", "Release Notes"],
-  "Legal & Support": ["Contact Us", "Help Center", "Privacy Policy", "Terms of Service"],
+  Product: [
+    { href: "#features", label: "Features" },
+    { href: "#pricing", label: "Pricing" },
+    { href: `mailto:${supportEmail}?subject=EduManager%20security%20information`, label: "Security" },
+    { href: `mailto:${supportEmail}?subject=EduManager%20release%20notes`, label: "Release Notes" },
+  ],
+  "Legal & Support": [
+    { href: "#contact", label: "Contact Us" },
+    { href: `mailto:${supportEmail}?subject=EduManager%20help`, label: "Help Center" },
+    { href: `mailto:${supportEmail}?subject=EduManager%20privacy%20policy`, label: "Privacy Policy" },
+    { href: `mailto:${supportEmail}?subject=EduManager%20terms%20of%20service`, label: "Terms of Service" },
+  ],
 }
 
 function SiteFooter() {
@@ -13,7 +25,7 @@ function SiteFooter() {
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-10 pb-12 md:grid-cols-[1.3fr_1fr_1fr]">
           <div>
-            <a className="flex items-center gap-2 font-semibold tracking-normal" href="#">
+            <a className="flex items-center gap-2 font-semibold tracking-normal" href="/">
               <GraduationCap className="size-5 text-muted-foreground" aria-hidden="true" />
               EduManager
             </a>
@@ -28,9 +40,9 @@ function SiteFooter() {
               <h3 className="text-sm font-semibold text-foreground">{group}</h3>
               <ul className="mt-5 space-y-3 text-sm text-muted-foreground">
                 {links.map((link) => (
-                  <li key={link}>
-                    <a className="transition hover:text-foreground" href="#">
-                      {link}
+                  <li key={link.label}>
+                    <a className="transition hover:text-foreground" href={link.href}>
+                      {link.label}
                     </a>
                   </li>
                 ))}
@@ -45,7 +57,7 @@ function SiteFooter() {
           <p>© 2024 EduManager Systems, Inc. All rights reserved.</p>
           <div className="flex items-center gap-2">
             <Mail className="size-4" aria-hidden="true" />
-            <span>support@edumanager.example</span>
+            <a className="transition hover:text-foreground" href={`mailto:${supportEmail}`}>{supportEmail}</a>
           </div>
         </div>
       </div>
