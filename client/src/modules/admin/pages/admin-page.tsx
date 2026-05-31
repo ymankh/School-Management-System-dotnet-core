@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 
 import type { AuthRole, AuthUser } from "@/modules/auth/api/local-auth"
+import { adminQueryKeys } from "@/modules/admin/api/admin-query-keys"
 import {
   createSubject,
   createUser,
@@ -79,13 +80,15 @@ function AdminPage({ currentUser, onLogout }: AdminPageProps) {
   const [subjectSearch, setSubjectSearch] = useState("")
   const [includeInactive, setIncludeInactive] = useState(true)
 
+  const userFilters = { role: roleFilter, search: userSearch }
+  const subjectFilters = { includeInactive, search: subjectSearch }
   const usersQuery = useQuery({
-    queryKey: ["admin-users", roleFilter, userSearch],
-    queryFn: () => getUsers({ role: roleFilter, search: userSearch }),
+    queryKey: adminQueryKeys.users(userFilters),
+    queryFn: () => getUsers(userFilters),
   })
   const subjectsQuery = useQuery({
-    queryKey: ["admin-subjects", includeInactive, subjectSearch],
-    queryFn: () => getSubjects({ includeInactive, search: subjectSearch }),
+    queryKey: adminQueryKeys.subjects(subjectFilters),
+    queryFn: () => getSubjects(subjectFilters),
   })
 
   const users = usersQuery.data ?? emptyUsers
@@ -227,7 +230,7 @@ function UsersPanel({
   const [editDraft, setEditDraft] = useState({ fullName: "", email: "", role: "student" as AuthRole })
   const [mutationError, setMutationError] = useState("")
 
-  const refreshUsers = () => queryClient.invalidateQueries({ queryKey: ["admin-users"] })
+  const refreshUsers = () => queryClient.invalidateQueries({ queryKey: adminQueryKeys.usersRoot() })
   const createMutation = useMutation({
     mutationFn: createUser,
     onError: (nextError) => setMutationError(toErrorMessage(nextError)),
@@ -480,7 +483,7 @@ function SubjectsPanel({
   const [editDraft, setEditDraft] = useState(defaultSubjectDraft)
   const [mutationError, setMutationError] = useState("")
 
-  const refreshSubjects = () => queryClient.invalidateQueries({ queryKey: ["admin-subjects"] })
+  const refreshSubjects = () => queryClient.invalidateQueries({ queryKey: adminQueryKeys.subjectsRoot() })
   const createMutation = useMutation({
     mutationFn: createSubject,
     onError: (nextError) => setMutationError(toErrorMessage(nextError)),

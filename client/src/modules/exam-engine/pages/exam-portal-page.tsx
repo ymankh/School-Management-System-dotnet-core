@@ -31,6 +31,7 @@ import {
   uploadExamAttachment,
 } from "@/modules/exam-engine/api/exam-engine-api"
 import type { ExamDashboardFilters } from "@/modules/exam-engine/api/exam-engine-api"
+import { examQueryKeys } from "@/modules/exam-engine/api/exam-engine-query-keys"
 import {
   ApiUnavailable,
   PanelCrashFallback,
@@ -142,15 +143,15 @@ function ExamPortalPage({
 
   const dashboardQuery = useQuery({
     enabled: canUseTeacherPortal,
-    queryKey: ["exam-dashboard", dashboardFilters],
+    queryKey: examQueryKeys.dashboard(dashboardFilters),
     queryFn: () => getExamDashboard(dashboardFilters),
   })
   const studentExamsQuery = useQuery({
     enabled: canUseStudentPortal && hasStudentId,
-    queryKey: ["student-exams", studentId],
+    queryKey: examQueryKeys.studentExams(studentId),
     queryFn: () => getStudentExams(studentId),
   })
-  const questionBankQuery = useQuery({ enabled: canUseTeacherPortal, queryKey: ["question-bank"], queryFn: getQuestionBank })
+  const questionBankQuery = useQuery({ enabled: canUseTeacherPortal, queryKey: examQueryKeys.questionBank(), queryFn: getQuestionBank })
 
   const startAttemptMutation = useMutation({
     mutationFn: ({ examId, studentId }: { examId: number; studentId: number }) => startAttempt(examId, studentId),
@@ -212,7 +213,7 @@ function ExamPortalPage({
     onSuccess: (exam) => {
       setActiveExamOverride(exam)
       setTeacherNotice(`${exam.title} is now ${exam.status}.`)
-      queryClient.setQueriesData<ExamDashboard>({ queryKey: ["exam-dashboard"] }, (dashboard) => {
+      queryClient.setQueriesData<ExamDashboard>({ queryKey: examQueryKeys.dashboardRoot() }, (dashboard) => {
         if (!dashboard) {
           return dashboard
         }
@@ -236,22 +237,22 @@ function ExamPortalPage({
           exams,
         }
       })
-      void queryClient.invalidateQueries({ queryKey: ["exam-dashboard"] })
-      void queryClient.invalidateQueries({ queryKey: ["student-exams"] })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.studentExamsRoot() })
     },
   })
 
   const duplicateExamMutation = useMutation({
     mutationFn: duplicateExam,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["exam-dashboard"] })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
     },
   })
 
   const archiveExamMutation = useMutation({
     mutationFn: archiveExam,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["exam-dashboard"] })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
     },
   })
 
@@ -259,8 +260,8 @@ function ExamPortalPage({
     mutationFn: updateExam,
     onSuccess: (exam) => {
       setActiveExamOverride(exam)
-      void queryClient.invalidateQueries({ queryKey: ["exam", exam.id] })
-      void queryClient.invalidateQueries({ queryKey: ["exam-dashboard"] })
+      queryClient.setQueryData(examQueryKeys.detail(exam.id), exam)
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
     },
   })
 
@@ -269,7 +270,7 @@ function ExamPortalPage({
     onSuccess: (exam) => {
       setActiveExamOverride(exam)
       handleTeacherPanelChange("builder")
-      void queryClient.invalidateQueries({ queryKey: ["exam-dashboard"] })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
     },
   })
 
@@ -279,7 +280,7 @@ function ExamPortalPage({
       importQuestionsFromBank(examId, groupId, itemIds),
     onSuccess: () => {
       if (activeExam) {
-        void queryClient.invalidateQueries({ queryKey: ["exam", activeExam.id] })
+        void queryClient.invalidateQueries({ queryKey: examQueryKeys.detail(activeExam.id) })
       }
     },
   })
@@ -292,7 +293,9 @@ function ExamPortalPage({
     mutationFn: publishMarks,
     onSuccess: (exam) => {
       setActiveExamOverride(exam)
-      void queryClient.invalidateQueries({ queryKey: ["exam", exam.id] })
+      queryClient.setQueryData(examQueryKeys.detail(exam.id), exam)
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.dashboardRoot() })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.studentExamsRoot() })
     },
   })
 
@@ -336,7 +339,7 @@ function ExamPortalPage({
       return
     }
 
-    const examResult = await queryClient.fetchQuery({ queryKey: ["exam", examId], queryFn: () => getExam(examId) })
+    const examResult = await queryClient.ensureQueryData({ queryKey: examQueryKeys.detail(examId), queryFn: () => getExam(examId) })
     setActiveExamOverride(examResult)
     setSelectedQuestionId(getExamQuestions(examResult)[0]?.id ?? null)
     startAttemptMutation.mutate({ examId, studentId })
@@ -348,9 +351,9 @@ function ExamPortalPage({
     }
 
     const [examResult, attemptResult] = await Promise.all([
-      queryClient.fetchQuery({ queryKey: ["exam", examId], queryFn: () => getExam(examId) }),
-      queryClient.fetchQuery({
-        queryKey: ["student-exam-attempt", studentId, examId],
+      queryClient.ensureQueryData({ queryKey: examQueryKeys.detail(examId), queryFn: () => getExam(examId) }),
+      queryClient.ensureQueryData({
+        queryKey: examQueryKeys.studentAttempt(studentId, examId),
         queryFn: () => getStudentExamAttempt(studentId, examId),
       }),
     ])
@@ -367,7 +370,7 @@ function ExamPortalPage({
       return
     }
 
-    const examResult = await queryClient.fetchQuery({ queryKey: ["exam", examId], queryFn: () => getExam(examId) })
+    const examResult = await queryClient.ensureQueryData({ queryKey: examQueryKeys.detail(examId), queryFn: () => getExam(examId) })
     setActiveExamOverride(examResult)
     handleTeacherPanelChange(panel)
   }

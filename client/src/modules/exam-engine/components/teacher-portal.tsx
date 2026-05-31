@@ -44,6 +44,7 @@ import type {
 import type { TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 import { durationMinutes, formatDate, matchesDashboardDateFilter, uniqueSorted } from "@/modules/exam-engine/utils/exam-engine-formatters"
 import { getExamGroups, getExamQuestions, getGroupQuestions } from "@/modules/exam-engine/utils/exam-engine-model"
+import { examQueryKeys } from "@/modules/exam-engine/api/exam-engine-query-keys"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -235,7 +236,7 @@ function BuilderEmptyState({
 }) {
   const exams = dashboard?.exams ?? []
   const editableExams = exams.filter((exam) => exam.status !== "Archived")
-  const classSubjectsQuery = useQuery({ queryKey: ["class-subject-options"], queryFn: getClassSubjects })
+  const classSubjectsQuery = useQuery({ queryKey: examQueryKeys.classSubjects(), queryFn: getClassSubjects })
   const classSubjects = classSubjectsQuery.data ?? []
   const [selectedClassSubjectId, setSelectedClassSubjectId] = useState("")
   const selectedClassSubject =
@@ -556,13 +557,13 @@ function ExamBuilder({
   } | null>(null)
   const queryClient = useQueryClient()
   const subjectSkillsQuery = useQuery({
-    queryKey: ["subject-skills", exam.classSubjectId],
+    queryKey: examQueryKeys.subjectSkills(exam.classSubjectId),
     queryFn: () => getSubjectSkills(exam.classSubjectId),
   })
   const createSubjectSkillMutation = useMutation({
     mutationFn: createSubjectSkill,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["subject-skills", exam.classSubjectId] })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.subjectSkills(exam.classSubjectId) })
       setIsSkillSheetOpen(false)
       setSkillDraft(defaultSkillDraft)
     },
@@ -1596,13 +1597,13 @@ function QuestionBankLibrary({
 
 function TeacherGrading({ exam, publishMarks }: { exam: Exam; publishMarks: (examId: number) => void }) {
   const questions = getExamQuestions(exam)
-  const gradingAnswersQuery = useQuery({ queryKey: ["exam-grading", exam.id], queryFn: () => getGradingAnswers(exam.id) })
+  const gradingAnswersQuery = useQuery({ queryKey: examQueryKeys.grading(exam.id), queryFn: () => getGradingAnswers(exam.id) })
   const queryClient = useQueryClient()
   const gradeMutation = useMutation({
     mutationFn: ({ answerId, awardedMark, feedback }: { answerId: number; awardedMark: number; feedback: string }) =>
       gradeAnswer(answerId, awardedMark, feedback),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["exam-grading", exam.id] })
+      void queryClient.invalidateQueries({ queryKey: examQueryKeys.grading(exam.id) })
     },
   })
   const manualQuestions = questions.filter((question) =>
