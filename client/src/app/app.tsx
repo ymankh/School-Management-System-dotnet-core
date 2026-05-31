@@ -3,7 +3,6 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
-  Navigate,
   Outlet,
   redirect,
   RouterProvider,
@@ -82,8 +81,7 @@ const principalRoute = createRoute({
 const teacherRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/teacher",
-  beforeLoad: requireRole("teacher"),
-  component: () => <NavigateToRoute to="/teacher/dashboard" />,
+  beforeLoad: requireRoleRedirect("teacher", "/teacher/dashboard"),
 })
 
 const teacherDashboardRoute = createTeacherRoute("/teacher/dashboard", "dashboard")
@@ -94,8 +92,7 @@ const teacherGradingRoute = createTeacherRoute("/teacher/grading", "grading")
 const studentRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/student",
-  beforeLoad: requireRole("student"),
-  component: () => <NavigateToRoute to="/student/dashboard" />,
+  beforeLoad: requireRoleRedirect("student", "/student/dashboard"),
 })
 
 const studentDashboardRoute = createStudentRoute("/student/dashboard", "dashboard")
@@ -238,13 +235,6 @@ function ParentRoute() {
   return <ParentPage currentUser={user!} onLogout={useLogout()} />
 }
 
-type NavigateToRouteProps = {
-  to: "/admin" | "/principal" | "/teacher/dashboard" | "/student/dashboard" | "/parent" | "/login" | "/unauthorized"
-}
-
-function NavigateToRoute({ to }: NavigateToRouteProps) {
-  return <Navigate to={to} />
-}
 
 function createTeacherRoute(path: "/teacher/dashboard" | "/teacher/builder" | "/teacher/bank" | "/teacher/grading", panel: TeacherPanel) {
   return createRoute({
@@ -304,6 +294,13 @@ function requireRole(role: AuthUser["role"]) {
     if (context.user.role !== role) {
       throw redirect({ to: "/unauthorized" })
     }
+  }
+}
+
+function requireRoleRedirect(role: AuthUser["role"], to: "/teacher/dashboard" | "/student/dashboard") {
+  return ({ context }: { context: AppRouterContext }) => {
+    requireRole(role)({ context })
+    throw redirect({ to })
   }
 }
 
