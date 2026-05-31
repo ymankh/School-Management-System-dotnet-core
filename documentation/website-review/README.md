@@ -18,8 +18,8 @@ Status values: `Not started`, `In progress`, `Done`, `Blocked`.
 | 12 | Done | Important | Student exam | Timer, autosave, and upload status changes are not announced to assistive technology. | Accessibility fix |
 | 13 | Done | Important | Role portals | Principal and parent portals show visible “not connected yet” placeholders. | Product/content fix |
 | 14 | Done | Important | Performance | Production app ships as one large JS chunk. | Architecture fix |
-| 15 | In progress | Important | Performance | Landing hero image asset is heavy. | Asset/performance fix |
-| 16 | Not started | Nice to improve | Maintainability | Portal files are oversized and hard to maintain. | Component fix |
+| 15 | Done | Important | Performance | Landing hero image asset is heavy. | Asset/performance fix |
+| 16 | In progress | Nice to improve | Maintainability | Portal files are oversized and hard to maintain. | Component fix |
 | 17 | Not started | Nice to improve | Content | Marketing copy is generic and includes unverifiable claims. | Content fix |
 
 ## Update log
@@ -40,3 +40,4 @@ Status values: `Not started`, `In progress`, `Done`, `Blocked`.
 - 2026-05-31: Completed ID 12. Exam timer, autosave, upload progress, and upload errors now expose live regions. Started ID 13.
 - 2026-05-31: Completed ID 13. Principal and parent portals now show account-aware entry content instead of disconnected placeholder pages. Started ID 14.
 - 2026-05-31: Completed ID 14. Route-level lazy loading splits the previous single app chunk into route chunks; the main JS bundle dropped to 385.49 kB in the production build. Started ID 15.
+- 2026-05-31: Completed ID 15. Converted the landing/auth hero image from 1,567,168-byte PNG to 56,274-byte WebP and updated imports. Started ID 16.

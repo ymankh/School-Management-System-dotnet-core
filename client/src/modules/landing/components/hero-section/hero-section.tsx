@@ -1,6 +1,6 @@
 import { ArrowRight, BarChart3, CirclePlay } from "lucide-react"
 
-import heroImage from "@/assets/images/education-dashboard-hero.png"
+import heroImage from "@/assets/images/education-dashboard-hero.webp"
 import { Avatar, AvatarFallback, AvatarGroup } from "@/shared/components/ui/avatar"
 import { Button } from "@/shared/components/ui/button"
 import { Card } from "@/shared/components/ui/card"

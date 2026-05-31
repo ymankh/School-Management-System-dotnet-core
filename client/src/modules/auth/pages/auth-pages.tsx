@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react"
 import { ArrowRight, BookOpenCheck, GraduationCap, LockKeyhole, Mail, UserRound } from "lucide-react"
 
 import { loginAccount, registerAccount, type AuthUser } from "@/modules/auth/api/local-auth"
-import heroImage from "@/assets/images/education-dashboard-hero.png"
+import heroImage from "@/assets/images/education-dashboard-hero.webp"
 import { Button } from "@/shared/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card"
 import { Input } from "@/shared/components/ui/input"
