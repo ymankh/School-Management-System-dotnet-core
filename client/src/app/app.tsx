@@ -218,11 +218,13 @@ function AdminRoute() {
 }
 
 function PrincipalRoute() {
-  return <PrincipalPage />
+  const { user } = rootRoute.useRouteContext()
+  return <PrincipalPage currentUser={user!} onLogout={useLogout()} />
 }
 
 function ParentRoute() {
-  return <ParentPage />
+  const { user } = rootRoute.useRouteContext()
+  return <ParentPage currentUser={user!} onLogout={useLogout()} />
 }
 
 type NavigateToRouteProps = {

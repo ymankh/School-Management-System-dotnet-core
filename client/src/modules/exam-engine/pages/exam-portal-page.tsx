@@ -1,11 +1,9 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   BookOpen,
   CalendarDays,
-  GraduationCap,
   LayoutDashboard,
-  LogOut,
   Mail,
   NotebookText,
   ShieldCheck,
@@ -42,24 +40,8 @@ import { TeacherPortal } from "@/modules/exam-engine/components/teacher-portal"
 import type { ClassSubjectOption, Exam, ExamAttempt, ExamDashboard, ExamQuestion, StudentAnswer } from "@/modules/exam-engine/types/exam-engine.types"
 import type { MainView, StudentPage, StudentPanel, TeacherPanel } from "@/modules/exam-engine/types/exam-engine-ui.types"
 import { getAttemptQuestions, getExamQuestions } from "@/modules/exam-engine/utils/exam-engine-model"
+import { DashboardShell, type DashboardNavItem } from "@/shared/components/dashboard-shell"
 import { ErrorBoundary } from "@/shared/components/error-boundary"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarSeparator,
-  SidebarTrigger,
-} from "@/shared/components/ui/sidebar"
-import { TooltipProvider } from "@/shared/components/ui/tooltip"
 
 type ExamPortalPageProps = {
   currentUser?: AuthUser
@@ -70,17 +52,6 @@ type ExamPortalPageProps = {
   onLogout?: () => void
   onStudentPageChange?: (page: StudentPage) => void
   onTeacherPanelChange?: (panel: TeacherPanel) => void
-}
-
-type DashboardShellProps = {
-  activeView: MainView
-  allowedViews: MainView[]
-  children: ReactNode
-  currentUser?: AuthUser
-  onLogout?: () => void
-  onSelectStudentPage: (page: StudentPage) => void
-  onSelectView: (view: MainView) => void
-  studentPage: StudentPage
 }
 
 const viewLabels: Record<MainView, string> = {
@@ -437,17 +408,22 @@ function ExamPortalPage({
 
   return (
     <DashboardShell
-      activeView={activeMainView}
-      allowedViews={allowedViews}
       currentUser={currentUser}
+      description="Online, paper, grouped, randomized, autosaved exams"
+      navItems={getExamNavigationItems({
+        activeView: activeMainView,
+        allowedViews,
+        onSelectStudentPage: (page) => {
+          setMainView("student")
+          setStudentPanel("list")
+          handleStudentPageChange(page)
+        },
+        onSelectView: setMainView,
+        studentPage,
+      })}
       onLogout={onLogout}
-      onSelectStudentPage={(page) => {
-        setMainView("student")
-        setStudentPanel("list")
-        handleStudentPageChange(page)
-      }}
-      onSelectView={setMainView}
-      studentPage={studentPage}
+      sectionLabel="Exam Engine"
+      title={viewLabels[activeMainView]}
     >
       {apiError && (
         <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive lg:px-6">
@@ -528,130 +504,45 @@ function ExamPortalPage({
   )
 }
 
-function DashboardShell({
+function getExamNavigationItems({
   activeView,
   allowedViews,
-  children,
-  currentUser,
-  onLogout,
   onSelectStudentPage,
   onSelectView,
   studentPage,
-}: DashboardShellProps) {
-  const navigationItems =
-    allowedViews.length === 1 && allowedViews[0] === "student"
-      ? studentPages.map((page) => ({
-          active: activeView === "student" && studentPage === page,
-          icon: studentPageIcons[page],
-          label: studentPageLabels[page],
-          onClick: () => onSelectStudentPage(page),
-        }))
-      : [
-          ...allowedViews
-            .filter((view) => view !== "student")
-            .map((view) => ({
-              active: activeView === view,
-              icon: viewIcons[view],
-              label: viewLabels[view],
-              onClick: () => onSelectView(view),
-            })),
-          ...(
-            allowedViews.includes("student")
-              ? studentPages.map((page) => ({
-                  active: activeView === "student" && studentPage === page,
-                  icon: studentPageIcons[page],
-                  label: studentPageLabels[page],
-                  onClick: () => onSelectStudentPage(page),
-                }))
-              : []
-          ),
-        ]
-
-  return (
-    <TooltipProvider>
-      <SidebarProvider defaultOpen={false}>
-        <Sidebar collapsible="icon">
-          <SidebarHeader>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton size="lg" tooltip="EduManager">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                    <GraduationCap className="size-4" />
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">EduManager</span>
-                    <span className="truncate text-xs uppercase text-sidebar-foreground/70">Exam Engine</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-            <SidebarTrigger className="ml-auto" />
-          </SidebarHeader>
-
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navigationItems.map((item) => {
-                    const Icon = item.icon
-
-                    return (
-                      <SidebarMenuItem key={item.label}>
-                        <SidebarMenuButton isActive={item.active} tooltip={item.label} onClick={item.onClick}>
-                          <Icon className="size-4" />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-
-          {currentUser && (
-            <SidebarFooter>
-              <SidebarSeparator />
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton size="lg" tooltip={currentUser.fullName}>
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-accent text-sidebar-accent-foreground">
-                      <UserRound className="size-4" />
-                    </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{currentUser.fullName}</span>
-                      <span className="truncate text-xs capitalize text-sidebar-foreground/70">{currentUser.role}</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton tooltip="Log Out" onClick={onLogout}>
-                    <LogOut className="size-4" />
-                    <span>Log Out</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          )}
-
-          <SidebarRail />
-        </Sidebar>
-
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card px-4 lg:px-6">
-            <div className="flex items-center gap-3">
-              <div>
-                <h1 className="text-lg font-semibold">{viewLabels[activeView]}</h1>
-                <p className="text-xs text-muted-foreground">Online, paper, grouped, randomized, autosaved exams</p>
-              </div>
-            </div>
-          </header>
-
-          {children}
-        </SidebarInset>
-      </SidebarProvider>
-    </TooltipProvider>
-  )
+}: {
+  activeView: MainView
+  allowedViews: MainView[]
+  onSelectStudentPage: (page: StudentPage) => void
+  onSelectView: (view: MainView) => void
+  studentPage: StudentPage
+}): DashboardNavItem[] {
+  return allowedViews.length === 1 && allowedViews[0] === "student"
+    ? studentPages.map((page) => ({
+        active: activeView === "student" && studentPage === page,
+        icon: studentPageIcons[page],
+        label: studentPageLabels[page],
+        onClick: () => onSelectStudentPage(page),
+      }))
+    : [
+        ...allowedViews
+          .filter((view) => view !== "student")
+          .map((view) => ({
+            active: activeView === view,
+            icon: viewIcons[view],
+            label: viewLabels[view],
+            onClick: () => onSelectView(view),
+          })),
+        ...(allowedViews.includes("student")
+          ? studentPages.map((page) => ({
+              active: activeView === "student" && studentPage === page,
+              icon: studentPageIcons[page],
+              label: studentPageLabels[page],
+              onClick: () => onSelectStudentPage(page),
+            }))
+          : []),
+      ]
 }
+
 
 export { ExamPortalPage }

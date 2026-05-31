@@ -2,7 +2,6 @@ import { useMemo, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   BookOpen,
-  LogOut,
   Mail,
   Pencil,
   Plus,
@@ -10,7 +9,6 @@ import {
   Search,
   ShieldCheck,
   Trash2,
-  UserRound,
   UsersRound,
 } from "lucide-react"
 
@@ -35,9 +33,9 @@ import { Checkbox } from "@/shared/components/ui/checkbox"
 import { Input } from "@/shared/components/ui/input"
 import { Label } from "@/shared/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
 import { Textarea } from "@/shared/components/ui/textarea"
+import { DashboardShell } from "@/shared/components/dashboard-shell"
 
 type AdminPageProps = {
   currentUser: AuthUser
@@ -64,6 +62,7 @@ const emptyUsers: AdminUser[] = []
 const emptySubjects: Subject[] = []
 
 function AdminPage({ currentUser, onLogout }: AdminPageProps) {
+  const [activePage, setActivePage] = useState<"overview" | "users" | "subjects">("overview")
   const [userSearch, setUserSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [subjectSearch, setSubjectSearch] = useState("")
@@ -87,41 +86,24 @@ function AdminPage({ currentUser, onLogout }: AdminPageProps) {
     .sort((left, right) => Date.parse(right.createdAtUtc) - Date.parse(left.createdAtUtc))
     .slice(0, 5)
 
+  const navItems = [
+    { active: activePage === "overview", icon: ShieldCheck, label: "Overview", onClick: () => setActivePage("overview" as const) },
+    { active: activePage === "users", icon: UsersRound, label: "Users", onClick: () => setActivePage("users" as const) },
+    { active: activePage === "subjects", icon: BookOpen, label: "Subjects", onClick: () => setActivePage("subjects" as const) },
+  ]
+
   return (
-    <main className="min-h-screen bg-background p-4 lg:p-6">
-      <div className="mx-auto max-w-7xl space-y-5">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-medium text-primary">
-              <ShieldCheck className="size-4" aria-hidden="true" />
-              Admin workspace
-            </div>
-            <h1 className="mt-1 text-2xl font-semibold tracking-normal">Admin Portal</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Manage users, roles, and academic subjects.</p>
-          </div>
-          <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <UserRound className="size-4" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-medium">{currentUser.fullName}</div>
-              <div className="truncate text-xs text-muted-foreground">{currentUser.email}</div>
-            </div>
-            <Button variant="outline" size="sm" onClick={onLogout}>
-              <LogOut className="size-4" aria-hidden="true" />
-              Logout
-            </Button>
-          </div>
-        </header>
-
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="w-full justify-start sm:w-fit">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="subjects">Subjects</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
+    <DashboardShell
+      currentUser={currentUser}
+      description="Manage users, roles, and academic subjects."
+      navItems={navItems}
+      onLogout={onLogout}
+      sectionLabel="Admin"
+      title="Admin Portal"
+    >
+      <div className="mx-auto w-full max-w-7xl space-y-4 p-4 lg:p-6">
+        {activePage === "overview" && (
+          <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <MetricCard icon={UsersRound} label="Total Users" value={users.length} />
               <MetricCard icon={ShieldCheck} label="Admins" value={roleCounts.admin ?? 0} />
@@ -169,34 +151,34 @@ function AdminPage({ currentUser, onLogout }: AdminPageProps) {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="users">
-            <UsersPanel
-              roleFilter={roleFilter}
-              search={userSearch}
-              users={users}
-              error={usersQuery.error}
-              isLoading={usersQuery.isLoading}
-              setRoleFilter={setRoleFilter}
-              setSearch={setUserSearch}
-            />
-          </TabsContent>
+        {activePage === "users" && (
+          <UsersPanel
+            roleFilter={roleFilter}
+            search={userSearch}
+            users={users}
+            error={usersQuery.error}
+            isLoading={usersQuery.isLoading}
+            setRoleFilter={setRoleFilter}
+            setSearch={setUserSearch}
+          />
+        )}
 
-          <TabsContent value="subjects">
-            <SubjectsPanel
-              error={subjectsQuery.error}
-              includeInactive={includeInactive}
-              isLoading={subjectsQuery.isLoading}
-              search={subjectSearch}
-              setIncludeInactive={setIncludeInactive}
-              setSearch={setSubjectSearch}
-              subjects={subjects}
-            />
-          </TabsContent>
-        </Tabs>
+        {activePage === "subjects" && (
+          <SubjectsPanel
+            error={subjectsQuery.error}
+            includeInactive={includeInactive}
+            isLoading={subjectsQuery.isLoading}
+            search={subjectSearch}
+            setIncludeInactive={setIncludeInactive}
+            setSearch={setSubjectSearch}
+            subjects={subjects}
+          />
+        )}
       </div>
-    </main>
+    </DashboardShell>
   )
 }
 

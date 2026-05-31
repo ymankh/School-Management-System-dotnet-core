@@ -1,21 +1,42 @@
+import { BookOpen, CalendarDays, LayoutDashboard, UsersRound } from "lucide-react"
+
+import type { AuthUser } from "@/modules/auth"
+import { DashboardShell } from "@/shared/components/dashboard-shell"
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card"
 
-function ParentPage() {
+type ParentPageProps = {
+  currentUser: AuthUser
+  onLogout: () => void
+}
+
+function ParentPage({ currentUser, onLogout }: ParentPageProps) {
+  const navItems = [
+    { active: true, icon: LayoutDashboard, label: "Overview", onClick: () => undefined },
+    { active: false, icon: UsersRound, label: "Children", onClick: () => undefined },
+    { active: false, icon: BookOpen, label: "Exams", onClick: () => undefined },
+    { active: false, icon: CalendarDays, label: "Schedule", onClick: () => undefined },
+  ]
+
   return (
-    <main className="min-h-screen bg-background p-4 lg:p-6">
-      <div className="mb-5">
-        <h1 className="text-2xl font-semibold">Parent Portal</h1>
-        <p className="text-sm text-muted-foreground">Linked child academic information will appear here.</p>
+    <DashboardShell
+      currentUser={currentUser}
+      description="Linked child academic information will appear here."
+      navItems={navItems}
+      onLogout={onLogout}
+      sectionLabel="Parent"
+      title="Parent Portal"
+    >
+      <div className="p-4 lg:p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Family Access</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Parent-specific child selection, classes, exams, and results are not connected yet.
+          </CardContent>
+        </Card>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Family Access</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Parent-specific child selection, classes, exams, and results are not connected yet.
-        </CardContent>
-      </Card>
-    </main>
+    </DashboardShell>
   )
 }
 
